@@ -55,6 +55,9 @@
     pkgs.gnupg
     pkgs.pinentry_mac
     inputs.diaryx.packages.${pkgs.system}.default
+    pkgs.gh
+    pkgs.bun
+    pkgs.rustup
   ];
 
   programs.gpg = {

@@ -52,6 +52,14 @@
     enableFishIntegration = true; 
   };
 
+  programs.tmux = {
+    enable = true;
+    mouse = true;
+    extraConfig = ''
+      set -g status-bg blue
+    '';
+  };
+
   # Packages specific to your user
   home.packages = [
     pkgs.ripgrep

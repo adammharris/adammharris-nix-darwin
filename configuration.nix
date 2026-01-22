@@ -11,7 +11,6 @@
   };
   environment.systemPackages =
     [ pkgs.vim
-      pkgs.tmux
       pkgs.fish
     ];
 

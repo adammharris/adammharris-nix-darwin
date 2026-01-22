@@ -1,44 +1,70 @@
-{ pkgs, ... }: {
+{ pkgs, inputs, ... }:
+{
   home.username = "adamharris";
   home.homeDirectory = "/Users/adamharris";
 
   # Do not change this unless you know what you are doing. 
   # It's used for state versioning.
-  home.stateVersion = "23.11"; 
+  home.stateVersion = "23.11";
 
   # The Fish configuration
   programs.fish = {
     enable = true;
-    interactiveShellInit = ''
-      # Optional: Add any extra shell init here
-    '';
-    shellAliases = {
-      rebuild = "darwin-rebuild switch --flake ~/.config/nix-darwin#adams-mac";
+    shellAbbrs = {
+      rebuild = "sudo darwin-rebuild switch --flake ~/.config/nix-darwin#adams-mac";
       e = "hx";
-      shellconfig = "$EDITOR ~/.config/fish/config.fish";
-      userconfig = "cd /Users/adamharris/.config/nix-dfarwin && $EDITOR adamharris.nix";
+      config = "cd /Users/adamharris/.config/nix-darwin && $EDITOR adamharris.nix";
+    };
+  };
+
+  programs.git = {
+    enable = true;
+    settings = {
+      user = {
+        name = "Adam Harris";
+        email = "adam@diaryx.org";
+      };
+    };
+    signing = {
+      key = "6D8BDF997ED474FD";
+      signByDefault = true;
     };
   };
 
   # The Ghostty configuration
   programs.ghostty = {
     enable = true;
+    package = null;
     settings = {
-      theme = "catppuccin-mocha";
-      font-family = "JetBrainsMono Nerd Font";
+      theme = "Gruvbox Dark Hard";
       font-size = 13;
-      command = "${pkgs.fish}/bin/fish";
     };
+  };
+
+  programs.helix = {
+    enable = true;
+    defaultEditor = true;
   };
 
   # Packages specific to your user
   home.packages = [
     pkgs.ripgrep
     pkgs.bat
-    pkgs.helix
     pkgs.eza
     pkgs.zoxide
+    pkgs.gnupg
+    pkgs.pinentry_mac
+    inputs.diaryx.packages.${pkgs.system}.default
   ];
+
+  programs.gpg = {
+    enable = true;
+  };
+
+  services.gpg-agent = {
+    enable = true;
+    enableFishIntegration = true;
+  };
 
   # Let Home Manager install and manage itself
   programs.home-manager.enable = true;

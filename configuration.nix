@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
 
 {
   networking.hostName = "adams-mac";
@@ -20,23 +20,28 @@
     enable = true;
     casks = [
       "ghostty"
+      "gpg-suite"
+      "amethyst"
     ];
   };
 
-  programs.ghostty = {
-    enable = true;
-    settings = {
-      theme = "Gruvbox Dark Hard"; # Example theme
-      font-size = 13;      
-    };
+  users.users.adamharris = {
+    name = "adamharris";
+    home = "/Users/adamharris";
+    shell = pkgs.fish;
   };
 
+  programs.tmux = {
+    enable = true;
+    # This ensures tmux always starts with Fish
+    extraConfig = ''
+      set -g default-shell ${pkgs.fish}/bin/fish
+    '';
+  };
 
-    
-
-  users.users.adammharris = {
-    name = "adammharris";
-    shell = pkgs.fish;
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
   };
 
   nix.settings.experimental-features = "nix-command flakes";  

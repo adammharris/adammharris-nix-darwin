@@ -11,13 +11,11 @@
       pkgs.tmux
     ];
 
-  nix.settings.experimental-features = "nix-command flakes";
-  services.nix-daemon.enable = true;
-  
+  nix.settings.experimental-features = "nix-command flakes";  
 
   # Enable alternative shell support in nix-darwin.
   programs.fish.enable = true;
-  security.pam.enableSudoTouchIdAuth = true;
+  security.pam.services.sudo_local.touchIdAuth = true;
 
   # Used for backwards compatibility, please read the changelog before changing.
   # $ darwin-rebuild changelog

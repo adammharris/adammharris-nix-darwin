@@ -46,6 +46,12 @@
     defaultEditor = true;
   };
 
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+    enableFishIntegration = true; 
+  };
+
   # Packages specific to your user
   home.packages = [
     pkgs.ripgrep

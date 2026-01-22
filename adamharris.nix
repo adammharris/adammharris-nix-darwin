@@ -14,6 +14,18 @@
       rebuild = "sudo darwin-rebuild switch --flake ~/.config/nix-darwin#adams-mac";
       e = "hx";
       config = "cd /Users/adamharris/.config/nix-darwin && $EDITOR adamharris.nix";
+      ".." = "cd ..";
+      "..." = "cd ../..";
+      "...." = "cd ../../..";
+      lsa = "ls -a";
+      z = "zoxide";
+      gs = "git status";
+      "ga." = "git add .";
+    };
+    shellAliases = {
+      ls = "eza -lh --group-directories-first --icons=auto";
+      lt = "eza --tree --level=2 --long --icons --git";
+      lta = "lt -a";
     };
     functions = {
       fish_greeting = {

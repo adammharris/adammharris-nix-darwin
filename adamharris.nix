@@ -153,7 +153,23 @@
     pkgs.pinentry_mac
     inputs.diaryx.packages.${pkgs.system}.default
     pkgs.gh
+    pkgs.glow
   ];
+
+  programs.lazygit = {
+    enable = true;
+    settings = {
+      gui.theme = {
+        lightTheme = false;
+        activeBorderColor = [ "green" "bold" ];
+        inactiveBorderColor = [ "white" ];
+      };
+    };
+  };
+
+  programs.bun = {
+    enable = true;
+  }
 
   programs.gpg = {
     enable = true;

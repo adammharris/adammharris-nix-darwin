@@ -169,7 +169,7 @@
 
   programs.bun = {
     enable = true;
-  }
+  };
 
   programs.gpg = {
     enable = true;

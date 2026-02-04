@@ -1,5 +1,7 @@
 { config, pkgs, inputs, ... }:
-
+let
+  scripts = import ./scripts/new-window.nix { inherit pkgs; };
+in
 {
   networking.hostName = "adams-mac";
   networking.computerName = "Adams MacBook";
@@ -22,6 +24,14 @@
       "gpg-suite"
       "amethyst"
     ];
+  };
+
+  services.skhd = {
+    enable = true;
+    skhdConfig = ''
+      alt - return : ${scripts.new-window-script}/bin/new-window Ghostty
+      alt - b      : ${scripts.new-window-script}/bin/new-window Orion
+    '';
   };
 
   users.users.adamharris = {

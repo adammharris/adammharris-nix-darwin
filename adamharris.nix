@@ -1,5 +1,5 @@
 { pkgs, inputs, ... }:
-{
+{  
   home.username = "adamharris";
   home.homeDirectory = "/Users/adamharris";
 
@@ -21,6 +21,7 @@
       z = "zoxide";
       gs = "git status";
       "ga." = "git add .";
+      dx = "diaryx";
     };
     shellAliases = {
       ls = "eza -lh --group-directories-first --icons=auto";
@@ -52,7 +53,7 @@
           echo "Today's tasks:"
           # Note: We check if diaryx exists to avoid errors on new setups
           if command -v diaryx > /dev/null
-              diaryx property get today todo || echo "No todos for today!"
+              diaryx property get today todo 2> /dev/null || echo "No todos for today!"
           else
               echo "diaryx not found. Install it with 'cargo install diaryx'"
           end
@@ -154,6 +155,9 @@
     inputs.diaryx.packages.${pkgs.system}.default
     pkgs.gh
     pkgs.glow
+    pkgs.fzf
+    pkgs.nodejs_24
+    pkgs.nushell
   ];
 
   programs.lazygit = {

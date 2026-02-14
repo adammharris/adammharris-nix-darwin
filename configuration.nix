@@ -20,9 +20,10 @@ in
   homebrew = {
     enable = true;
     casks = [
-      "ghostty"
+      "ghostty@tip"
       "gpg-suite"
       "amethyst"
+      "codex"
     ];
   };
 

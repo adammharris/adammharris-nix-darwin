@@ -158,6 +158,12 @@
     pkgs.fzf
     pkgs.nodejs_24
     pkgs.nushell
+    pkgs.fd
+    pkgs.yazi
+    pkgs.ffmpeg
+    pkgs.uv
+    pkgs.nil
+    pkgs.nixd
   ];
 
   programs.lazygit = {

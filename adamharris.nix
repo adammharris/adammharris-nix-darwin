@@ -70,6 +70,12 @@
         name = "Adam Harris";
         email = "adam@diaryx.org";
       };
+      url = {
+        "git@github.com:" = {
+          insteadOf = "https://github.com/";
+        };
+      };
+      push.autoSetupRemote = true;
     };
     signing = {
       key = "6D8BDF997ED474FD";

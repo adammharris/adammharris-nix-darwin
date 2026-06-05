@@ -6,15 +6,76 @@
   # Do not change this unless you know what you are doing. 
   # It's used for state versioning.
   home.stateVersion = "23.11";
+
+  # Karabiner is set up to make caps lock a super modifer
+  xdg.configFile."skhd/skhdrc".text = ''
+    shift + ctrl + alt + cmd - s : open /Applications/Synctrain.app
+    shift + ctrl + alt + cmd - t : open /Applications/Tailscale.app
+    shift + ctrl + alt + cmd - a : open /Applications/Antigravity.app
+    shift + ctrl + alt + cmd - g : open /Applications/Ghostty.app
+    shift + ctrl + alt + cmd - b : open /Applications/Safari.app
+    shift + ctrl + alt + cmd - d : open /Applications/Diaryx.app
+    shift + ctrl + alt + cmd - m : open /System/Applications/Mail.app
+    shift + ctrl + alt + cmd - p : open "/Applications/Prism Launcher.app"
+  '';
+
+  xdg.configFile."karabiner/karabiner.json" = {
+    text = ''
+      {
+        "profiles": [
+          {
+            "name": "Default profile",
+            "selected": true,
+            "complex_modifications": {
+              "parameters": {
+                "basic.to_if_alone_timeout_milliseconds": 1000,
+                "basic.to_if_held_down_threshold_milliseconds": 500,
+                "basic.to_delayed_action_delay_milliseconds": 500,
+                "basic.simultaneous_threshold_milliseconds": 50,
+                "mouse_motion_to_scroll.speed": 100
+              },
+              "rules": [
+                {
+                  "description": "Caps Lock to Hyper (if held) / Escape (if alone)",
+                  "manipulators": [
+                    {
+                      "type": "basic",
+                      "from": {
+                        "key_code": "caps_lock",
+                        "modifiers": { "optional": ["any"] }
+                      },
+                      "to": [
+                        {
+                          "key_code": "left_shift",
+                          "modifiers": ["left_command", "left_control", "left_option"]
+                        }
+                      ],
+                      "to_if_alone": [
+                        { "key_code": "escape" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "devices": [],
+            "fn_function_keys": [],
+            "simple_modifications": [],
+            "virtual_hid_keyboard": {
+              "country_code": 0,
+              "keyboard_type": "ansi",
+              "keyboard_type_v2": "ansi",
+              "mouse_key_milliseconds_interval": 10
+            }
+          }
+        ]
+      }
+    '';
+    force = true;
+  };
   # The Fish configuration
   programs.fish = {
     enable = true;
-    interactiveShellInit = ''
-      if status is-interactive
-          and not set -q TMUX
-          set -x COLORTERM truecolor
-      end
-    '';
     shellAbbrs = {
       rebuild = "sudo darwin-rebuild switch --flake ~/.config/nix-darwin#adams-mac";
       e = "hx";
@@ -97,6 +158,23 @@
   programs.helix = {
     enable = true;
     defaultEditor = true;
+    languages = {
+      language-server.rust-analyzer = {
+        command = "rust-analyzer";
+        environment = {
+          CARGO_TARGET_DIR = "target/rust-analyzer";
+        };
+        config = {
+          cargo = {
+            targetDir = true;
+          };
+          check = {
+            workspace = false;
+            allTargets = false;
+          };
+        };
+      };
+    };
   };
 
   programs.direnv = {
@@ -252,21 +330,19 @@
     pkgs.pinentry_mac
     inputs.diaryx.packages.${pkgs.system}.default
     pkgs.gh
-    pkgs.glow
     pkgs.fzf
     pkgs.nodejs_24
     pkgs.nushell
     pkgs.fd
-    pkgs.yazi
     pkgs.ffmpeg
     pkgs.uv
     pkgs.nil
     pkgs.nixd
     pkgs.rustup
     pkgs.openssl_oqs
-    pkgs.fortune-kind
     pkgs.presenterm
-
+    pkgs.zig
+    pkgs.tree
   ];
 
   programs.lazygit = {

@@ -1,7 +1,4 @@
-{ config, pkgs, inputs, ... }:
-let
-  scripts = import ./scripts/new-window.nix { inherit pkgs; };
-in
+{ pkgs, ... }:
 {
   networking.hostName = "adams-mac";
   networking.computerName = "Adams MacBook";
@@ -19,20 +16,21 @@ in
   
   homebrew = {
     enable = true;
+    taps = [
+      "jackielii/tap" # for skhd-zig
+      "diaryx-org/tap"
+    ];
+    brews = [
+      "diaryx"
+    ];
     casks = [
+      "skhd-zig"
+      "karabiner-elements"
       "ghostty"
       "gpg-suite"
-      "amethyst"
       "codex"
+      "codex-app"
     ];
-  };
-
-  services.skhd = {
-    enable = true;
-    skhdConfig = ''
-      alt - return : ${scripts.new-window-script}/bin/new-window Ghostty
-      alt - b      : ${scripts.new-window-script}/bin/new-window Orion
-    '';
   };
 
   users.users.adamharris = {
@@ -63,4 +61,22 @@ in
   # Used for backwards compatibility, please read the changelog before changing.
   # $ darwin-rebuild changelog
   system.stateVersion = 6;
+
+  system.activationScripts.postActivation.text = ''
+    # Clean up the old, stale plist if it exists (pointing to old cellar path)
+    if [ -f /Users/adamharris/Library/LaunchAgents/com.jackielii.skhd.plist ]; then
+      if grep -q "Cellar/skhd-zig" /Users/adamharris/Library/LaunchAgents/com.jackielii.skhd.plist; then
+        echo "Removing stale skhd-zig cellar plist..."
+        sudo -u adamharris launchctl unload /Users/adamharris/Library/LaunchAgents/com.jackielii.skhd.plist || true
+        rm -f /Users/adamharris/Library/LaunchAgents/com.jackielii.skhd.plist
+      fi
+    fi
+
+    # Start skhd-zig service if installed
+    if [ -x /Applications/skhd.app/Contents/MacOS/skhd ]; then
+      echo "Ensuring skhd-zig service is active..."
+      sudo -i -u adamharris /Applications/skhd.app/Contents/MacOS/skhd --start-service || true
+      /bin/launchctl kickstart -k "gui/$(/usr/bin/id -u adamharris)/com.jackielii.skhd" || true
+    fi
+  '';
 }

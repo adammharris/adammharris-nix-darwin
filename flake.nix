@@ -8,11 +8,9 @@
 
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
-
-    diaryx.url = "github:diaryx-org/diaryx";
   };
 
-  outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager, diaryx, ... }: {
+  outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager, ... }: {
     darwinConfigurations."adams-mac" = nix-darwin.lib.darwinSystem {
       specialArgs = { inherit inputs; };
       modules = [

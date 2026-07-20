@@ -18,10 +18,6 @@
     enable = true;
     taps = [
       "jackielii/tap" # for skhd-zig
-      "diaryx-org/tap"
-    ];
-    brews = [
-      "diaryx"
     ];
     casks = [
       "skhd-zig"
@@ -30,6 +26,10 @@
       "gpg-suite"
       "codex"
       "codex-app"
+      "dolphin"
+      "google-chrome"
+      "markedit"
+      "tiled"
     ];
   };
 

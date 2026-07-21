@@ -1,4 +1,4 @@
-{ pkgs, inputs, ... }:
+{ config, pkgs, inputs, ... }:
 {  
   home.username = "adamharris";
   home.homeDirectory = "/Users/adamharris";
@@ -6,6 +6,17 @@
   # Do not change this unless you know what you are doing. 
   # It's used for state versioning.
   home.stateVersion = "23.11";
+
+  home.sessionVariables = {
+    EDITOR = "hx";
+    JOURNAL = "${config.home.homeDirectory}/Desktop/Adam's Archive";
+  };
+
+  # Fish auto-generates completions from man pages, which force-enables
+  # programs.man.generateCaches (the slow "building man-cache" mandb step
+  # on every rebuild). We don't need the apropos/man -k index, so turn it
+  # off while keeping fish's completions.
+  programs.man.generateCaches = false;
 
   # Karabiner is set up to make caps lock a super modifer
   xdg.configFile."skhd/skhdrc".text = ''
@@ -90,6 +101,8 @@
       "ga." = "git add .";
       dx = "diaryx";
       zigstall = "zig build -Doptimize=ReleaseFast --prefix ~/.local";
+      timestamp = "date +%Y-%m-%dT%H:%M:%S%:z";
+      today = ''set -l y (date +%Y) && set -l m (date +%m) && set -l d (date +%d) && prov edit $JOURNAL/$(prov -C "$JOURNAL" new "$y-$m-$d" --in "@Daily/$y/$m" -p --as "Daily/$y/$m/$y-$m-$d.md")'';
     };
     shellAliases = {
       ls = "eza -lh --group-directories-first --icons=auto";
@@ -117,7 +130,9 @@
 
           set_color blue
           echo "Today's tasks:"
-          diaryx property get today todo 2> /dev/null || echo "No todos for today!"
+          set year (date +%Y)
+          set month (date +%m)
+          fig get "$JOURNAL/Daily/$year/$month/$year-$month-$(date +%d).md" todo 2> /dev/null || echo "None for today!"
         '';
       };
     };
@@ -128,6 +143,10 @@
   };
 
   programs.zsh = {
+    enable = true;
+  };
+
+  programs.nushell = {
     enable = true;
   };
 

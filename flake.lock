@@ -229,11 +229,11 @@
         "zig-overlay": "zig-overlay_2"
       },
       "locked": {
-        "lastModified": 1784517123,
-        "narHash": "sha256-V922evfTK6BmsvxJfu6atqufoLt3BgDlju96B2KFf2M=",
+        "lastModified": 1784567251,
+        "narHash": "sha256-Q3OZMTsPt5LVd7gO5KMBoEZEVpFtQCoE1YxnSEQjNW4=",
         "owner": "diaryx-org",
         "repo": "prov",
-        "rev": "5fd1cc2b902b2235980963d4a828fbe1cfdcb052",
+        "rev": "4148eb2808c90d8fc593967eade0a8357d3579c8",
         "type": "github"
       },
       "original": {

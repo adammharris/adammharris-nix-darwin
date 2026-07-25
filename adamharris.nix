@@ -395,6 +395,7 @@
     pkgs.gh
     pkgs.fzf
     pkgs.nodejs_24
+    pkgs.bun
     pkgs.nushell
     pkgs.fd
     pkgs.ffmpeg

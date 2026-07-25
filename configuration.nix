@@ -36,14 +36,14 @@
   users.users.adamharris = {
     name = "adamharris";
     home = "/Users/adamharris";
-    shell = pkgs.fish;
+    shell = pkgs.nushell;
   };
 
   programs.tmux = {
     enable = true;
-    # This ensures tmux always starts with Fish
+    # This ensures tmux always starts with Nushell
     extraConfig = ''
-      set -g default-shell ${pkgs.fish}/bin/fish
+      set -g default-shell ${pkgs.nushell}/bin/nu
     '';
   };
 
@@ -75,7 +75,7 @@
     # Start skhd-zig service if installed
     if [ -x /Applications/skhd.app/Contents/MacOS/skhd ]; then
       echo "Ensuring skhd-zig service is active..."
-      sudo -i -u adamharris /Applications/skhd.app/Contents/MacOS/skhd --start-service || true
+      sudo -u adamharris /Applications/skhd.app/Contents/MacOS/skhd --start-service || true
       /bin/launchctl kickstart -k "gui/$(/usr/bin/id -u adamharris)/com.jackielii.skhd" || true
     fi
   '';

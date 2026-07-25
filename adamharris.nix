@@ -10,7 +10,36 @@
   home.sessionVariables = {
     EDITOR = "hx";
     JOURNAL = "${config.home.homeDirectory}/Desktop/Adam's Archive";
+    # Was a fish-only universal variable, so cargo silently used a different
+    # CARGO_HOME per shell. See home.file below.
+    CARGO_HOME = "${config.home.homeDirectory}/.local/share/cargo";
   };
+
+  # Declared here so zsh/bash/fish share one PATH definition rather than fish's
+  # unmanaged `fish_user_paths`. nushell ignores this; see extraEnv below.
+  home.sessionPath = [
+    "/opt/homebrew/bin"
+    "/opt/homebrew/sbin"
+    "${config.home.homeDirectory}/.local/bin"
+  ];
+
+  # Required: cargo's built-in git transport authenticates ssh:// remotes via
+  # ssh-agent only, and our agent (gpg-agent's ssh socket) has no identities
+  # loaded, so it never finds ~/.ssh/id_ed25519. Shelling out to real git does.
+  # Written to both paths so it applies even when CARGO_HOME isn't set.
+  home.file =
+    let
+      cargoConfig = {
+        text = ''
+          [net]
+          git-fetch-with-cli = true
+        '';
+      };
+    in
+    {
+      ".local/share/cargo/config.toml" = cargoConfig;
+      ".cargo/config.toml" = cargoConfig;
+    };
 
   # Fish auto-generates completions from man pages, which force-enables
   # programs.man.generateCaches (the slow "building man-cache" mandb step
@@ -20,16 +49,16 @@
 
   # Karabiner is set up to make caps lock a super modifer
   xdg.configFile."skhd/skhdrc".text = ''
-    shift + ctrl + alt + cmd - s : open /Applications/Synctrain.app
-    shift + ctrl + alt + cmd - t : open /Applications/Tailscale.app
-    shift + ctrl + alt + cmd - a : open /Applications/Claude.app
-    shift + ctrl + alt + cmd - g : open /Applications/Ghostty.app
-    shift + ctrl + alt + cmd - b : open /Applications/Safari.app
-    shift + ctrl + alt + cmd - d : open /Applications/Diaryx.app
-    shift + ctrl + alt + cmd - m : open /System/Applications/Mail.app
-    shift + ctrl + alt + cmd - p : open "/Applications/Prism Launcher.app"
-    shift + ctrl + alt + cmd - z : open /Applications/Zed.app
-    shift + ctrl + alt + cmd - f : open ~
+    shift + ctrl + alt + cmd - s : ^open /Applications/Synctrain.app
+    shift + ctrl + alt + cmd - t : ^open /Applications/Tailscale.app
+    shift + ctrl + alt + cmd - a : ^open /Applications/Claude.app
+    shift + ctrl + alt + cmd - g : ^open /Applications/Ghostty.app
+    shift + ctrl + alt + cmd - b : ^open /Applications/Safari.app
+    shift + ctrl + alt + cmd - d : ^open /Applications/Diaryx.app
+    shift + ctrl + alt + cmd - m : ^open /System/Applications/Mail.app
+    shift + ctrl + alt + cmd - p : ^open "/Applications/Prism Launcher.app"
+    shift + ctrl + alt + cmd - z : ^open /Applications/Zed.app
+    shift + ctrl + alt + cmd - f : ^open ~
   '';
 
   xdg.configFile."karabiner/karabiner.json" = {
@@ -148,6 +177,80 @@
 
   programs.nushell = {
     enable = true;
+
+    # nushell is our login shell but sources neither /etc/zshenv (where
+    # nix-darwin sets PATH) nor home.sessionPath, so both are repeated here.
+    extraEnv = ''
+      $env.PATH = ($env.PATH
+        | split row (char esep)
+        | prepend [
+            "${config.home.homeDirectory}/.nix-profile/bin"
+            "/run/current-system/sw/bin"
+            "/nix/var/nix/profiles/default/bin"
+            "/opt/homebrew/bin"
+            "/opt/homebrew/sbin"
+            "${config.home.homeDirectory}/.local/bin"
+          ]
+        | uniq)
+    '';
+
+    environmentVariables = {
+      JOURNAL = "${config.home.homeDirectory}/Desktop/Adam's Archive";
+      # Repeated from home.sessionVariables, which nushell doesn't read.
+      CARGO_HOME = "${config.home.homeDirectory}/.local/share/cargo";
+    };
+
+    shellAliases = {
+      timeout = "uutils-timeout";
+      udate = "uutils-date";
+    };
+
+    settings = {
+      show_banner = false;
+      abbreviations = {
+        rebuild = "sudo darwin-rebuild switch --flake ~/.config/nix-darwin#adams-mac";
+        e = "hx";
+        config = "cd /Users/adamharris/.config/nix-darwin; hx adamharris.nix";
+        gs = "git status";
+        "ga." = "git add .";
+        dx = "diaryx";
+        zigstall = "zig build -Doptimize=ReleaseFast --prefix ~/.local";
+        timestamp = "uutils-date +%Y-%m-%dT%H:%M:%S%:z";
+        today = "today";
+      };
+    };
+
+    extraConfig = ''
+      # Re-implementation of the GPG_TTY half of home-manager's gpg-agent
+      # nushell integration (services.gpg-agent.enableNushellIntegration),
+      # guarded so it doesn't abort non-interactive `nu -c` invocations when
+      # there's no tty. (The SSH_AUTH_SOCK half is still handled safely by
+      # home-manager's own sshAuthSock module, which doesn't touch tty.)
+      try {
+        $env.GPG_TTY = (tty)
+        ^${pkgs.gnupg}/bin/gpg-connect-agent --quiet updatestartuptty /bye | ignore
+      }
+
+      def today [] {
+        let y = (date now | format date "%Y")
+        let m = (date now | format date "%m")
+        let d = (date now | format date "%d")
+        let entry = (prov -C $env.JOURNAL new $"($y)-($m)-($d)" --in $"@Daily/($y)/($m)" -p --as $"Daily/($y)/($m)/($y)-($m)-($d).md")
+        prov edit $"($env.JOURNAL)/($entry)"
+      }
+      def greet [] {
+        let hour = (date now | format date "%H" | into int)
+        let time_msg = if $hour < 12 { "Good morning" } else if $hour < 18 { "Good afternoon" } else { "Good evening" }
+        print $"(ansi cyan)($time_msg), ($env.USER).(ansi reset)"
+        print $"(ansi blue)Today's tasks:(ansi reset)"
+        let year = (date now | format date "%Y")
+        let month = (date now | format date "%m")
+        let day = (date now | format date "%d")
+        let today_file = $"($env.JOURNAL)/Daily/($year)/($month)/($year)-($month)-($day).md"
+        try { fig get $today_file todo err> /dev/null } catch { print "None for today!" }
+      }
+      if $nu.is-login { greet }
+    '';
   };
 
   programs.git = {
@@ -174,7 +277,7 @@
     enable = true;
     package = null;
     settings = {
-      theme = "Gruvbox Dark Hard";
+      theme = "light:Gruvbox Light Hard,dark:Gruvbox Dark Hard";
       font-size = 13;
       unfocused-split-opacity = 1.0;
     };
@@ -205,7 +308,8 @@
   programs.direnv = {
     enable = true;
     nix-direnv.enable = true;
-    enableFishIntegration = true; 
+    enableFishIntegration = true;
+    enableNushellIntegration = true;
   };
 
   programs.tmux = {
@@ -242,7 +346,8 @@
   
   programs.starship = {
     enable = true;
-    enableFishIntegration = true; 
+    enableFishIntegration = true;
+    enableNushellIntegration = true;
     
     settings = {
       add_newline = true;
@@ -277,10 +382,6 @@
         deleted = "";
       };
     };
-  };
-
-  programs.zoxide = {
-    enable = true;
   };
 
   # Packages specific to your user
@@ -318,17 +419,6 @@
     inputs.moid.packages.${pkgs.system}.default
   ];
 
-  programs.lazygit = {
-    enable = true;
-    settings = {
-      gui.theme = {
-        lightTheme = false;
-        activeBorderColor = [ "green" "bold" ];
-        inactiveBorderColor = [ "white" ];
-      };
-    };
-  };
-
   programs.gpg = {
     enable = true;
     # Ported from the previously hand-maintained ~/.gnupg/gpg.conf so
@@ -364,6 +454,17 @@
     maxCacheTtlSsh = 7200;
     # `grab` is already emitted by home-manager's grabKeyboardAndMouse (default true).
     enableFishIntegration = true;
+    # enableNushellIntegration explicitly false (home-manager's global
+    # home.shell.enableNushellIntegration now defaults to true since nushell
+    # is the system shell, so merely omitting this isn't enough to disable
+    # it). The generated snippet does `$env.GPG_TTY = (tty)` unconditionally,
+    # and the `tty` external command exits non-zero when there's no
+    # controlling terminal. That aborts *any* non-interactive `nu -c ...`
+    # invocation (e.g. skhd-zig's login-shell PATH capture, run as part of
+    # every keypress dispatch), which is why skhd keybinds silently stopped
+    # firing after the login shell became nushell. We reimplement the same
+    # behavior guarded with try/catch below instead.
+    enableNushellIntegration = false;
   };
 
   # Let Home Manager install and manage itself

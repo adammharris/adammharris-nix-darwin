@@ -1,4 +1,4 @@
-{ config, pkgs, inputs, ... }:
+{ config, lib, pkgs, inputs, ... }:
 {  
   home.username = "adamharris";
   home.homeDirectory = "/Users/adamharris";
@@ -23,9 +23,10 @@
     "${config.home.homeDirectory}/.local/bin"
   ];
 
-  # Required: cargo's built-in git transport authenticates ssh:// remotes via
-  # ssh-agent only, and our agent (gpg-agent's ssh socket) has no identities
-  # loaded, so it never finds ~/.ssh/id_ed25519. Shelling out to real git does.
+  # Belt-and-braces since the ssh-agent fix below (cargo's native transport
+  # works again now that a real agent holds the key). Still worth keeping:
+  # shelling out to git makes cargo honour ~/.ssh/config and the global
+  # url.insteadOf rewrite, which its built-in transport ignores outright.
   # Written to both paths so it applies even when CARGO_HOME isn't set.
   home.file =
     let
@@ -224,8 +225,8 @@
       # Re-implementation of the GPG_TTY half of home-manager's gpg-agent
       # nushell integration (services.gpg-agent.enableNushellIntegration),
       # guarded so it doesn't abort non-interactive `nu -c` invocations when
-      # there's no tty. (The SSH_AUTH_SOCK half is still handled safely by
-      # home-manager's own sshAuthSock module, which doesn't touch tty.)
+      # there's no tty. (There's no SSH_AUTH_SOCK half any more - ssh support
+      # is off, so nothing overrides launchd's macOS ssh-agent socket.)
       try {
         $env.GPG_TTY = (tty)
         ^${pkgs.gnupg}/bin/gpg-connect-agent --quiet updatestartuptty /bye | ignore
@@ -419,6 +420,33 @@
     inputs.moid.packages.${pkgs.system}.default
   ];
 
+  # Replaces the hand-maintained ~/.ssh/config (whose showbrain/vps/vps-t/byu
+  # hosts are all retired). AddKeysToAgent + UseKeychain (an Apple-ssh option;
+  # /usr/bin/ssh is what's on PATH) unlock the key once and persist the
+  # passphrase in the login Keychain, which is what gives us a working agent.
+  programs.ssh = {
+    enable = true;
+    # Opting out of home-manager's legacy implicit defaults (deprecated, and
+    # they emit a build warning); nothing below relies on them.
+    enableDefaultConfig = false;
+
+    settings = {
+      nas = {
+        HostName = "harris-nas.tail581ab2.ts.net";
+        # Quoted because the account name contains a space - ssh_config splits
+        # unquoted values on whitespace and would read the user as "Adam".
+        User = ''"Adam Harris"'';
+        IdentityFile = "~/.ssh/id_ed25519";
+      };
+
+      # Last so the specific blocks above win any overlapping directive.
+      "*" = lib.hm.dag.entryAfter [ "nas" ] {
+        AddKeysToAgent = "yes";
+        UseKeychain = "yes";
+      };
+    };
+  };
+
   programs.gpg = {
     enable = true;
     # Ported from the previously hand-maintained ~/.gnupg/gpg.conf so
@@ -447,11 +475,14 @@
   services.gpg-agent = {
     # Ported from the previously hand-maintained ~/.gnupg/gpg-agent.conf.
     enable = true;
-    enableSshSupport = true;
+    # SSH is handled by macOS's ssh-agent (see programs.ssh). This was true,
+    # but sshcontrol is empty and the GPG key has no authentication subkey,
+    # so it claimed SSH_AUTH_SOCK for an agent that could never serve a key -
+    # which is what broke `cargo fetch` over ssh://. gpg-agent still signs
+    # git commits. The *Ssh cache TTLs went with it; they did nothing here.
+    enableSshSupport = false;
     defaultCacheTtl = 600;
     maxCacheTtl = 7200;
-    defaultCacheTtlSsh = 600;
-    maxCacheTtlSsh = 7200;
     # `grab` is already emitted by home-manager's grabKeyboardAndMouse (default true).
     enableFishIntegration = true;
     # enableNushellIntegration explicitly false (home-manager's global

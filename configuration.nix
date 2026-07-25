@@ -49,7 +49,13 @@
 
   programs.gnupg.agent = {
     enable = true;
-    enableSSHSupport = true;
+    # System-level twin of services.gpg-agent.enableSshSupport in
+    # adamharris.nix, and the one that actually bit: it exports SSH_AUTH_SOCK
+    # from nix-darwin's set-environment, which every POSIX-ish shell sources
+    # (fish via /etc/fish/nixos-env-preinit.fish), pointing them at a gpg-agent
+    # holding no keys. nushell never sources it, which is why the two shells
+    # disagreed. SSH is macOS ssh-agent's job now - see programs.ssh.
+    enableSSHSupport = false;
   };
 
   nix.settings.experimental-features = "nix-command flakes";  

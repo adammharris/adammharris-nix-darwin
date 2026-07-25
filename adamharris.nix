@@ -21,6 +21,7 @@
     "/opt/homebrew/bin"
     "/opt/homebrew/sbin"
     "${config.home.homeDirectory}/.local/bin"
+    "${config.home.homeDirectory}/.local/share/cargo/bin"
   ];
 
   # Belt-and-braces since the ssh-agent fix below (cargo's native transport

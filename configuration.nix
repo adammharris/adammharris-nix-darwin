@@ -31,6 +31,23 @@
       "markedit"
       "tiled"
     ];
+    masApps = {
+      "Amphetamine" = 937984704;
+      "iMovie" = 408981434;
+      "Kindle" = 302584613;
+      "Logic Pro" = 634148309;
+      "Microsoft Word" = 462054704;
+      "Numbers" = 361304891;
+      "Obsidian Web Clipper" = 6720708363;
+      "Pages" = 361309726;
+      "Prime Video" = 545519333;
+      "Strongbox" = 897283731;
+      "Synctrain" = 6553985316;
+      "Tailscale" = 1475387142;
+      "TestFlight" = 899247664;
+      "uBlock Origin Lite" = 6745342698;
+      "Xcode" = 497799835;
+    };
   };
 
   users.users.adamharris = {

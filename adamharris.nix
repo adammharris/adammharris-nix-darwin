@@ -10,8 +10,6 @@
   home.sessionVariables = {
     EDITOR = "hx";
     JOURNAL = "${config.home.homeDirectory}/Desktop/Adam's Archive";
-    # Was a fish-only universal variable, so cargo silently used a different
-    # CARGO_HOME per shell. See home.file below.
     CARGO_HOME = "${config.home.homeDirectory}/.local/share/cargo";
   };
 
@@ -285,9 +283,21 @@
     };
   };
 
+  # Helix (25.07) has no OS appearance detection, so it can't do what ghostty's
+  # `light:…,dark:…` theme does above. Instead the theme is a fixed name, "auto",
+  # backed by a one-line mutable file (~/.config/helix/themes/auto.toml) that
+  # only `inherits` the real gruvbox variant. The launchd agent below rewrites
+  # that file when macOS flips appearance; helix re-reads theme files on
+  # SIGUSR1, so running editors switch in place. Deliberately not managed by
+  # home-manager: nix-managed files are read-only symlinks into the store.
   programs.helix = {
     enable = true;
     defaultEditor = true;
+    settings = {
+      theme = "auto";
+      # Word count of the selection.
+      keys.normal.space."A-w" = "@<A-|>tee /tmp/helix-wc.file<ret>:sh cat /tmp/helix-wc.file | wc -w<ret>";
+    };
     languages = {
       language-server.rust-analyzer = {
         command = "rust-analyzer";
@@ -304,6 +314,46 @@
           };
         };
       };
+    };
+  };
+
+  # dark-mode-notify runs its argument once at load, on every appearance change,
+  # and on wake, with DARKMODE=1/0 in the environment.
+  launchd.agents.helix-theme-sync = {
+    enable = true;
+    config = {
+      ProgramArguments = [
+        "${pkgs.dark-mode-notify}/bin/dark-mode-notify"
+        (toString (pkgs.writeShellScript "helix-theme-sync" ''
+          set -eu
+          themes="$HOME/.config/helix/themes"
+          mkdir -p "$themes"
+
+          case "''${DARKMODE:-}" in
+            1) base=gruvbox_dark_hard ;;
+            0) base=gruvbox_light_hard ;;
+            # Fallback for running the script by hand, outside the agent.
+            *) if [ "$(/usr/bin/defaults read -g AppleInterfaceStyle 2>/dev/null || true)" = "Dark" ]
+               then base=gruvbox_dark_hard
+               else base=gruvbox_light_hard
+               fi ;;
+          esac
+
+          # Unique temp name: the agent fires this on load, on appearance change
+          # and on wake, and those can overlap.
+          tmp="$themes/.auto.toml.$$"
+          trap 'rm -f "$tmp"' EXIT
+          printf 'inherits = "%s"\n' "$base" > "$tmp"
+          mv "$tmp" "$themes/auto.toml"
+
+          # Tell any running helix to re-read its config and theme.
+          /usr/bin/pkill -USR1 -x hx || true
+        ''))
+      ];
+      RunAtLoad = true;
+      KeepAlive = true;
+      StandardOutPath = "${config.home.homeDirectory}/Library/Logs/helix-theme-sync.log";
+      StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/helix-theme-sync.log";
     };
   };
 

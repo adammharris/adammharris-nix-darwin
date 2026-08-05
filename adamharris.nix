@@ -1,4 +1,4 @@
-{ config, lib, pkgs, inputs, ... }:
+{ config, lib, pkgs, inputs, osConfig, ... }:
 {  
   home.username = "adamharris";
   home.homeDirectory = "/Users/adamharris";
@@ -14,7 +14,8 @@
   };
 
   # Declared here so zsh/bash/fish share one PATH definition rather than fish's
-  # unmanaged `fish_user_paths`. nushell ignores this; see extraEnv below.
+  # unmanaged `fish_user_paths`. nushell can't read this at runtime, but its
+  # extraEnv below is generated from this same list, so it stays in sync.
   home.sessionPath = [
     "/opt/homebrew/bin"
     "/opt/homebrew/sbin"
@@ -179,20 +180,28 @@
     enable = true;
 
     # nushell is our login shell but sources neither /etc/zshenv (where
-    # nix-darwin sets PATH) nor home.sessionPath, so both are repeated here.
-    extraEnv = ''
-      $env.PATH = ($env.PATH
-        | split row (char esep)
-        | prepend [
-            "${config.home.homeDirectory}/.nix-profile/bin"
-            "/run/current-system/sw/bin"
-            "/nix/var/nix/profiles/default/bin"
-            "/opt/homebrew/bin"
-            "/opt/homebrew/sbin"
-            "${config.home.homeDirectory}/.local/bin"
-          ]
-        | uniq)
-    '';
+    # nix-darwin's set-environment defines PATH) nor home.sessionPath, so both
+    # are reconstructed here. Derived from the same two options the other
+    # shells get, rather than hand-copied, so this can't drift again — and in
+    # the same order zsh ends up with (sessionPath prepended onto systemPath).
+    extraEnv =
+      let
+        # environment.systemPath is a ":"-joined string containing a literal
+        # $HOME for zsh to expand; nushell has no such expansion, so do it here.
+        systemPath = lib.splitString ":" (
+          builtins.replaceStrings [ "$HOME" ] [ config.home.homeDirectory ]
+            osConfig.environment.systemPath
+        );
+        paths = config.home.sessionPath ++ systemPath;
+      in
+      ''
+        $env.PATH = ($env.PATH
+          | split row (char esep)
+          | prepend [
+              ${lib.concatMapStringsSep "\n      " (p: ''"${p}"'') paths}
+            ]
+          | uniq)
+      '';
 
     environmentVariables = {
       JOURNAL = "${config.home.homeDirectory}/Desktop/Adam's Archive";

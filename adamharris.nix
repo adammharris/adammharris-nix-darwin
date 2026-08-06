@@ -129,7 +129,7 @@
       "...." = "cd ../../..";
       lsa = "ls -a";
       gs = "git status";
-      "ga." = "git add .";
+      ga = "git add";
       dx = "diaryx";
       zigstall = "zig build -Doptimize=ReleaseFast --prefix ~/.local";
       timestamp = "date +%Y-%m-%dT%H:%M:%S%:z";
@@ -222,7 +222,7 @@
         e = "hx";
         config = "cd /Users/adamharris/.config/nix-darwin; hx adamharris.nix";
         gs = "git status";
-        "ga." = "git add .";
+        ga = "git add";
         dx = "diaryx";
         zigstall = "zig build -Doptimize=ReleaseFast --prefix ~/.local";
         timestamp = "uutils-date +%Y-%m-%dT%H:%M:%S%:z";

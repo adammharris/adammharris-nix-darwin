@@ -413,6 +413,7 @@
     
     settings = {
       add_newline = false;
+      line_break.disabled = true;
       command_timeout = 200;
       format = "[$directory$git_branch$git_status]($style)$character";
 

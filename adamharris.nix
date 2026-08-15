@@ -415,7 +415,7 @@
       add_newline = false;
       line_break.disabled = true;
       command_timeout = 200;
-      format = "[$directory$git_branch$git_status]($style)$character";
+      format = "[$directory$git_branch$git_status]($style) $character";
 
       character = {
         error_symbol = "[×](bold_cyan)";
@@ -471,6 +471,7 @@
     pkgs.tree
     pkgs.wasmtime
     pkgs.uutils-coreutils
+    pkgs.git-cliff
 
     # Real `timeout` binary on PATH (~/.nix-profile/bin), independent of any
     # shell rc file — unlike the zsh/bash aliases above, this also resolves

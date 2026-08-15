@@ -9,11 +9,11 @@
         "zig-overlay": "zig-overlay"
       },
       "locked": {
-        "lastModified": 1784508789,
-        "narHash": "sha256-AWyvuQ3b/rSCnPzfwzdi5Q7sdnOPV5Edu2m0KBuOjKI=",
+        "lastModified": 1786724978,
+        "narHash": "sha256-2kCaQkrxKBQiDETYFtcmoKF7VL7zJd+HD+76brcoiCw=",
         "owner": "diaryx-org",
         "repo": "fig",
-        "rev": "f34ea4a8ad3ac565f8954f932ca2ef7baacb0ba6",
+        "rev": "706c79a21b399c0e2b1d667eb456f20ced5c622b",
         "type": "github"
       },
       "original": {
@@ -229,11 +229,11 @@
         "zig-overlay": "zig-overlay_2"
       },
       "locked": {
-        "lastModified": 1784567251,
-        "narHash": "sha256-Q3OZMTsPt5LVd7gO5KMBoEZEVpFtQCoE1YxnSEQjNW4=",
+        "lastModified": 1786775219,
+        "narHash": "sha256-2Dj80G5+P0egIWNB8REfLTtsa9zifLz7yNfT4MYw+q0=",
         "owner": "diaryx-org",
         "repo": "prov",
-        "rev": "4148eb2808c90d8fc593967eade0a8357d3579c8",
+        "rev": "319e687af38cf6520268c8ee6927ecd23d0eab2c",
         "type": "github"
       },
       "original": {
@@ -370,11 +370,11 @@
         "zig-overlay": "zig-overlay_3"
       },
       "locked": {
-        "lastModified": 1784494241,
-        "narHash": "sha256-Ga+ACjLt5PJ5r6snxWWDtReiLas686e50bEIpoRrD4I=",
+        "lastModified": 1786774158,
+        "narHash": "sha256-Ku/WIsqWVBN5AZhQjj5/dRto6q9H12AZ93Hnqm9npJY=",
         "owner": "diaryx-org",
         "repo": "twig",
-        "rev": "1325ecbc26decbb705e3d29dc176320eb4966d2b",
+        "rev": "8b1ced824811aa24714fb663d7d2f7ebcf84ced6",
         "type": "github"
       },
       "original": {

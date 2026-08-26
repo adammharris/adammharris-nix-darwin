@@ -54,7 +54,7 @@
     shift + ctrl + alt + cmd - t : ^open /Applications/Tailscale.app
     shift + ctrl + alt + cmd - a : ^open /Applications/Claude.app
     shift + ctrl + alt + cmd - g : ^open /Applications/Ghostty.app
-    shift + ctrl + alt + cmd - b : ^open /Applications/Safari.app
+    shift + ctrl + alt + cmd - b : ^open /Applications/Helium.app
     shift + ctrl + alt + cmd - d : ^open /Applications/Diaryx.app
     shift + ctrl + alt + cmd - m : ^open /System/Applications/Mail.app
     shift + ctrl + alt + cmd - p : ^open "/Applications/Prism Launcher.app"
@@ -103,7 +103,20 @@
               ]
             },
             "devices": [],
-            "fn_function_keys": [],
+            "fn_function_keys": [
+              { "from": { "key_code": "f1" }, "to": [{ "consumer_key_code": "display_brightness_decrement" }] },
+              { "from": { "key_code": "f2" }, "to": [{ "consumer_key_code": "display_brightness_increment" }] },
+              { "from": { "key_code": "f3" }, "to": [{ "key_code": "f3" }] },
+              { "from": { "key_code": "f4" }, "to": [{ "key_code": "f4" }] },
+              { "from": { "key_code": "f5" }, "to": [{ "key_code": "f5" }] },
+              { "from": { "key_code": "f6" }, "to": [{ "key_code": "f6" }] },
+              { "from": { "key_code": "f7" }, "to": [{ "key_code": "f7" }] },
+              { "from": { "key_code": "f8" }, "to": [{ "key_code": "f8" }] },
+              { "from": { "key_code": "f9" }, "to": [{ "key_code": "f9" }] },
+              { "from": { "key_code": "f10" }, "to": [{ "consumer_key_code": "mute" }] },
+              { "from": { "key_code": "f11" }, "to": [{ "consumer_key_code": "volume_decrement" }] },
+              { "from": { "key_code": "f12" }, "to": [{ "consumer_key_code": "volume_increment" }] }
+            ],
             "simple_modifications": [],
             "virtual_hid_keyboard": {
               "country_code": 0,
@@ -472,6 +485,8 @@
     pkgs.wasmtime
     pkgs.uutils-coreutils
     pkgs.git-cliff
+    pkgs.radicle-node
+    pkgs.pijul
 
     # Real `timeout` binary on PATH (~/.nix-profile/bin), independent of any
     # shell rc file — unlike the zsh/bash aliases above, this also resolves

@@ -7,6 +7,12 @@
   system.primaryUser = "adamharris";
   system.defaults = {
     dock.autohide = true;
+    # Leave the global "use F1-F12 as standard function keys" toggle OFF.
+    # Karabiner's fn_function_keys (adamharris.nix) does the per-key work:
+    # F3-F9 become plain function keys, F1/F2 stay brightness and
+    # F10/F11/F12 stay mute/volume. Flipping this to true would invert all
+    # twelve at once and fight that mapping.
+    NSGlobalDomain."com.apple.keyboard.fnState" = false;
   };
   environment.systemPackages =
     [ pkgs.vim
@@ -25,11 +31,11 @@
       "ghostty"
       "gpg-suite"
       "codex"
-      "codex-app"
       "dolphin"
       "google-chrome"
       "markedit"
       "tiled"
+      "helium-browser"
     ];
     masApps = {
       "Amphetamine" = 937984704;

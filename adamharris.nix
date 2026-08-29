@@ -143,7 +143,6 @@
       lsa = "ls -a";
       gs = "git status";
       ga = "git add";
-      dx = "diaryx";
       zigstall = "zig build -Doptimize=ReleaseFast --prefix ~/.local";
       timestamp = "date +%Y-%m-%dT%H:%M:%S%:z";
       today = ''set -l y (date +%Y) && set -l m (date +%m) && set -l d (date +%d) && prov edit $JOURNAL/$(prov -C "$JOURNAL" new "$y-$m-$d" --in "@Daily/$y/$m" -p --as "Daily/$y/$m/$y-$m-$d.md")'';
@@ -236,7 +235,6 @@
         config = "cd /Users/adamharris/.config/nix-darwin; hx adamharris.nix";
         gs = "git status";
         ga = "git add";
-        dx = "diaryx";
         zigstall = "zig build -Doptimize=ReleaseFast --prefix ~/.local";
         timestamp = "uutils-date +%Y-%m-%dT%H:%M:%S%:z";
         today = "today";
@@ -337,8 +335,55 @@
           };
         };
       };
+
+      # fig's authoring dialect (.figl; .fig is accepted for back-compat).
+      # `fig-lsp` comes from the fig flake input in home.packages, so it tracks
+      # flake.lock, NOT the ~/diaryx/fig working tree. To test an unreleased
+      # server, point `command` at that checkout's zig-out/bin/fig-lsp.
+      #
+      # Today the server publishes the Zig parser's teaching diagnostics and
+      # nothing else — no formatting, no hover — so there is no format-on-save
+      # entry here on purpose.
+      language-server.fig-lsp.command = "fig-lsp";
+
+      # Helix has no bundled fig grammar, so it is built from the checkout.
+      # This entry only DECLARES it; `hx --grammar build` compiles it into
+      # ~/.config/helix/runtime/grammars/fig.so, and must be re-run whenever
+      # editors/tree-sitter-fig/src/parser.c changes. Deliberately not a nix
+      # derivation: the point is to iterate on the grammar in place.
+      grammar = [
+        {
+          name = "fig";
+          source.path = "${config.home.homeDirectory}/diaryx/fig/editors/tree-sitter-fig";
+        }
+      ];
+
+      language = [
+        {
+          name = "fig";
+          scope = "source.fig";
+          file-types = [ "figl" "fig" ];
+          comment-token = "#";
+          # fig ignores indentation for meaning (depth is the `>` count), but
+          # 2 spaces is the printer's output, so match it.
+          indent = {
+            tab-width = 2;
+            unit = "  ";
+          };
+          language-servers = [ "fig-lsp" ];
+        }
+      ];
     };
   };
+
+  # Helix looks in the user runtime dir before its own, per file. An
+  # out-of-store symlink means editing the query in the fig checkout takes
+  # effect on the next `:config-reload` with no rebuild. The Zed extension
+  # ships the sibling highlights.scm; the two use different capture
+  # vocabularies, which is why there are two files.
+  xdg.configFile."helix/runtime/queries/fig/highlights.scm".source =
+    config.lib.file.mkOutOfStoreSymlink
+      "${config.home.homeDirectory}/diaryx/fig/editors/tree-sitter-fig/queries/highlights-helix.scm";
 
   # dark-mode-notify runs its argument once at load, on every appearance change,
   # and on wake, with DARKMODE=1/0 in the environment.
@@ -487,6 +532,7 @@
     pkgs.git-cliff
     pkgs.radicle-node
     pkgs.pijul
+    pkgs.minisign
 
     # Real `timeout` binary on PATH (~/.nix-profile/bin), independent of any
     # shell rc file — unlike the zsh/bash aliases above, this also resolves

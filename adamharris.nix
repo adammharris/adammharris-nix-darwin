@@ -23,11 +23,6 @@
     "${config.home.homeDirectory}/.local/share/cargo/bin"
   ];
 
-  # Belt-and-braces since the ssh-agent fix below (cargo's native transport
-  # works again now that a real agent holds the key). Still worth keeping:
-  # shelling out to git makes cargo honour ~/.ssh/config and the global
-  # url.insteadOf rewrite, which its built-in transport ignores outright.
-  # Written to both paths so it applies even when CARGO_HOME isn't set.
   home.file =
     let
       cargoConfig = {
@@ -38,9 +33,41 @@
       };
     in
     {
+      # Belt-and-braces since the ssh-agent fix below (cargo's native transport
+      # works again now that a real agent holds the key). Still worth keeping:
+      # shelling out to git makes cargo honour ~/.ssh/config and the global
+      # url.insteadOf rewrite, which its built-in transport ignores outright.
+      # Written to both paths so it applies even when CARGO_HOME isn't set.
       ".local/share/cargo/config.toml" = cargoConfig;
       ".cargo/config.toml" = cargoConfig;
+
+      # `dx` is diaryx-org's tool and it lives in the org checkout, so this is
+      # a link to the working tree and not a copy of it: editing devtools/dx.nu
+      # takes effect on the next invocation with no rebuild. It is also allowed
+      # to dangle - on a machine where ~/diaryx has not been cloned yet,
+      # activation still succeeds and the link starts working the moment it is.
+      # dx's shell entry point walks this symlink to find the org directory it
+      # operates on, so the link on PATH and the manifest a command reads are
+      # never two different checkouts. This replaces the `ln -s` that the org
+      # README tells you to run by hand.
+      ".local/bin/dx".source =
+        config.lib.file.mkOutOfStoreSymlink
+          "${config.home.homeDirectory}/diaryx/devtools/dx";
     };
+
+  # Nix cannot fetch the org directory: it is private, the clone is over SSH,
+  # and an activation that needs the network and a live agent is one that fails
+  # during a rebuild for reasons that have nothing to do with the rebuild.
+  # `dx clone` is the tool for that. This only notices, says so, and does not
+  # fail the switch. Everything dx shells out to - git, gh, git-cliff, nushell,
+  # minisign - is in home.packages below, so a fresh machine needs the two
+  # commands here and nothing else.
+  home.activation.diaryxOrg = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if [ ! -d "${config.home.homeDirectory}/diaryx/.git" ]; then
+      echo "diaryx: ~/diaryx is not a checkout yet -"
+      echo "  git clone git@github.com:diaryx-org/org.git ~/diaryx && dx clone"
+    fi
+  '';
 
   # Fish auto-generates completions from man pages, which force-enables
   # programs.man.generateCaches (the slow "building man-cache" mandb step

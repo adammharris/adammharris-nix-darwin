@@ -96,10 +96,21 @@
       fi
     fi
 
-    # Start skhd-zig service if installed
+    # Start skhd-zig service if installed.
+    #
+    # `-H` is load-bearing. Activation runs as root with HOME=/var/root, and
+    # macOS sudoers preserves HOME across `sudo -u`, so skhd resolved its
+    # config as /var/root/.config/skhd/skhdrc and printed "could not read
+    # config skhdrc: FileNotFound - skipping grabber check" on every rebuild.
+    # The daemon was never affected - launchd runs it in the user's gui domain
+    # with the right HOME - but --start-service does two things, and the
+    # second one (read the config, install skhd-grabber if a caps_lock-class
+    # rule needs it) was silently skipped rather than answered. With -H it
+    # reads the real skhdrc and says "skhd-grabber not needed", which is the
+    # true answer here because Karabiner does the caps lock work.
     if [ -x /Applications/skhd.app/Contents/MacOS/skhd ]; then
       echo "Ensuring skhd-zig service is active..."
-      sudo -u adamharris /Applications/skhd.app/Contents/MacOS/skhd --start-service || true
+      sudo -H -u adamharris /Applications/skhd.app/Contents/MacOS/skhd --start-service || true
       /bin/launchctl kickstart -k "gui/$(/usr/bin/id -u adamharris)/com.jackielii.skhd" || true
     fi
   '';

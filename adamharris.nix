@@ -5,17 +5,8 @@ let
   # the extension and execs it with the original arguments untouched. Anything
   # unrecognised — and anything with no filename at all, like the COMMIT_EDITMSG
   # git hands its editor — falls through to helix, which stays the general case.
-  #
-  # leaf and flower are homebrew formulae (diaryx-org/tap, declared in
-  # configuration.nix) rather than nix packages, so they can only be named by
-  # path, and that path is tested before it is used: on a machine where the
-  # brews aren't installed yet this degrades to helix rather than failing to
-  # open the file at all.
   editor = pkgs.writeShellScriptBin "edit" ''
     hx="${config.programs.helix.package}/bin/hx"
-    leaf="/opt/homebrew/bin/leaf"
-    flower="/opt/homebrew/bin/flower"
-
     # First argument that is neither a flag (`-w`) nor a line jump (`+42`).
     file=""
     for arg in "$@"; do
@@ -38,14 +29,21 @@ let
     esac
 
     case "$ext" in
-      md | markdown | dj | djot) chosen="$leaf" ;;
-      json | toml | figl | yaml | yml) chosen="$flower" ;;
+      md | markdown | dj | djot) chosen="leaf" ;;
+      json | toml | figl | yaml | yml) chosen="flower" ;;
       *) chosen="$hx" ;;
     esac
 
-    [ -x "$chosen" ] || chosen="$hx"
+    command -v "$chosen" >/dev/null 2>&1 || chosen="$hx"
     exec "$chosen" "$@"
   '';
+
+  # dx, diaryx-org's tool, is a nushell module in the org checkout. Both the
+  # config that imports it and the activation that writes that import need to
+  # agree on where the two files are, so the paths are named once here.
+  dxModule = "${config.home.homeDirectory}/diaryx/devtools/dx.nu";
+  dxImportDir = "${config.home.homeDirectory}/.local/state/nushell";
+  dxImport = "${dxImportDir}/dx.nu";
 in
 {  
   home.username = "adamharris";
@@ -68,10 +66,16 @@ in
   # Declared here so zsh/bash/fish share one PATH definition rather than fish's
   # unmanaged `fish_user_paths`. nushell can't read this at runtime, but its
   # extraEnv below is generated from this same list, so it stays in sync.
+  #
+  # ~/.local/bin comes first, and that ordering is load-bearing: it is where
+  # `dx use` links whichever build of an org CLI should answer right now, and
+  # the whole point is that it wins over the brew formula underneath. It used to
+  # sit after /opt/homebrew/bin, which made `dx use` a silent no-op — the link
+  # was made, the tool reported the channel, and brew's binary still ran.
   home.sessionPath = [
+    "${config.home.homeDirectory}/.local/bin"
     "/opt/homebrew/bin"
     "/opt/homebrew/sbin"
-    "${config.home.homeDirectory}/.local/bin"
     "${config.home.homeDirectory}/.local/share/cargo/bin"
   ];
 
@@ -102,6 +106,11 @@ in
       # operates on, so the link on PATH and the manifest a command reads are
       # never two different checkouts. This replaces the `ln -s` that the org
       # README tells you to run by hand.
+      #
+      # This is how every shell but nushell gets `dx`, and how anything that
+      # shells out to it does. In nushell the module below wins, which is the
+      # point: an external command can only print its table, and the module
+      # returns it.
       ".local/bin/dx".source =
         config.lib.file.mkOutOfStoreSymlink
           "${config.home.homeDirectory}/diaryx/devtools/dx";
@@ -118,6 +127,19 @@ in
     if [ ! -d "${config.home.homeDirectory}/diaryx/.git" ]; then
       echo "diaryx: ~/diaryx is not a checkout yet -"
       echo "  git clone git@github.com:diaryx-org/org.git ~/diaryx && dx clone"
+    fi
+
+    # The one line of nushell that imports dx as a module, written here rather
+    # than into config.nu because `use` resolves at parse time: importing a
+    # module that isn't there is a parse error, and a parse error in config.nu
+    # takes the whole config down with it - no PATH, no aliases, no prompt.
+    # Written on every switch, empty when there is no checkout to import, so
+    # ~/diaryx stays as optional as the dangling symlink above says it is.
+    mkdir -p "${dxImportDir}"
+    if [ -f "${dxModule}" ]; then
+      echo "use ${dxModule}" > "${dxImport}"
+    else
+      : > "${dxImport}"
     fi
   '';
 
@@ -224,7 +246,7 @@ in
       ga = "git add";
       zigstall = "zig build -Doptimize=ReleaseFast --prefix ~/.local";
       timestamp = "date +%Y-%m-%dT%H:%M:%S%:z";
-      today = ''set -l y (date +%Y) && set -l m (date +%m) && set -l d (date +%d) && prov edit $JOURNAL/$(prov -C "$JOURNAL" new "$y-$m-$d" --in "@Daily/$y/$m" -p --as "Daily/$y/$m/$y-$m-$d.md")'';
+      today = ''set -l y (date +%Y) && set -l m (date +%m) && set -l d (date +%d) && prov -C $JOURNAL edit $(prov -C "$JOURNAL" new "$y-$m-$d" --in "@Daily/$y/$m" -p --as "Daily/$y/$m/$y-$m-$d.md")'';
     };
     shellAliases = {
       ls = "eza -lh --group-directories-first --icons=auto";
@@ -323,6 +345,15 @@ in
     };
 
     extraConfig = ''
+      # `dx` here is the module in the org checkout rather than the wrapper on
+      # PATH, so its commands hand back the table they built instead of the
+      # text an external command can only print: `dx tasks fig | select file`
+      # is a pipeline, not a parse error. The `use` itself is one line in the
+      # file below, which the diaryxOrg activation writes - and leaves empty
+      # when ~/diaryx isn't there, because a `use` of a missing module is a
+      # parse error and a parse error here costs the whole config.
+      source ${dxImport}
+
       # Re-implementation of the GPG_TTY half of home-manager's gpg-agent
       # nushell integration (services.gpg-agent.enableNushellIntegration),
       # guarded so it doesn't abort non-interactive `nu -c` invocations when
@@ -338,7 +369,8 @@ in
         let m = (date now | format date "%m")
         let d = (date now | format date "%d")
         let entry = (prov -C $env.JOURNAL new $"($y)-($m)-($d)" --in $"@Daily/($y)/($m)" -p --as $"Daily/($y)/($m)/($y)-($m)-($d).md")
-        prov edit $"($env.JOURNAL)/($entry)"
+        print $"TODAY: Opening ($entry)"
+        prov -C $env.JOURNAL edit ($entry)
       }
       def greet [] {
         let hour = (date now | format date "%H" | into int)
@@ -394,8 +426,6 @@ in
   # home-manager: nix-managed files are read-only symlinks into the store.
   programs.helix = {
     enable = true;
-    # No `defaultEditor = true`: it would set EDITOR/VISUAL to plain `hx` and
-    # collide with the dispatcher those are pointed at in home.sessionVariables.
     settings = {
       theme = "auto";
       # Word count of the selection.
@@ -419,9 +449,12 @@ in
       };
 
       # fig's authoring dialect (.figl; .fig is accepted for back-compat).
-      # `fig-lsp` comes from the fig flake input in home.packages, so it tracks
-      # flake.lock, NOT the ~/diaryx/fig working tree. To test an unreleased
-      # server, point `command` at that checkout's zig-out/bin/fig-lsp.
+      # `fig-lsp` comes from the fig flake input in home.packages, so by default
+      # it tracks flake.lock and NOT the ~/diaryx/fig working tree. Testing an
+      # unreleased server no longer means editing this line: `dx use fig local`
+      # builds the checkout and links both `fig` and `fig-lsp` into
+      # ~/.local/bin, which is ahead of the nix profile on PATH, and
+      # `dx use fig off` puts it back.
       #
       # Today the server publishes the Zig parser's teaching diagnostics and
       # nothing else — no formatting, no hover — so there is no format-on-save
@@ -622,10 +655,19 @@ in
     # in non-interactive/no-rc shells (e.g. Claude Code's sandboxed Bash tool).
     (pkgs.writeShellScriptBin "timeout" ''exec ${pkgs.uutils-coreutils}/bin/uutils-timeout "$@"'')
 
+    # The org's CLIs come from the diaryx-org tap now (see homebrew.brews in
+    # configuration.nix), which tracks what CI publishes instead of whatever
+    # revision flake.lock was last bumped to — the lock had drifted three minor
+    # versions behind on prov. `dx use <repo> <channel>` links a newer build
+    # into ~/.local/bin when one is wanted, so nothing here needs to move for
+    # that; this is only the floor everything falls back to.
+    #
+    # fig is the exception, and only for one binary: the tap's formula does
+    # `bin.install "fig"` and ships no fig-lsp, which the Helix language-server
+    # entry below needs on PATH. brew's `fig` is ahead of the nix profile, so
+    # the CLI from this package is shadowed and unused — it is here to carry
+    # fig-lsp. If the formula ever installs both, this input goes.
     inputs.fig.packages.${pkgs.system}.default
-    inputs.twig.packages.${pkgs.system}.default
-    inputs.prov.packages.${pkgs.system}.default
-    inputs.moid.packages.${pkgs.system}.default
   ];
 
   # Replaces the hand-maintained ~/.ssh/config (whose showbrain/vps/vps-t/byu

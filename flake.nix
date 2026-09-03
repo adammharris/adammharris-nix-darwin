@@ -9,17 +9,20 @@
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
+    # The org's CLIs are installed from the diaryx-org homebrew tap, not from
+    # here — a flake input pins one revision and only moves when someone runs
+    # `nix flake update`, which is how prov ended up three minor versions behind
+    # what CI had published. The tap is written by CI on every release, so it is
+    # the better stable pin, and `dx use` handles anything newer than stable.
+    #
+    # fig survives as an input for exactly one binary: the tap's formula does
+    # `bin.install "fig"` and ships no fig-lsp, which Helix needs on PATH. See
+    # home.packages in adamharris.nix.
     fig.url = "github:diaryx-org/fig";
     fig.inputs.nixpkgs.follows = "nixpkgs";
-    twig.url = "github:diaryx-org/twig";
-    twig.inputs.nixpkgs.follows = "nixpkgs";
-    prov.url = "github:diaryx-org/prov";
-    prov.inputs.nixpkgs.follows = "nixpkgs";
-    moid.url = "github:diaryx-org/moid";
-    moid.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager, fig, twig, prov, moid, ... }: {
+  outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager, fig, ... }: {
     darwinConfigurations."adams-mac" = nix-darwin.lib.darwinSystem {
       specialArgs = { inherit inputs; };
       modules = [

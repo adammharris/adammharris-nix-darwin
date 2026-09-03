@@ -1,4 +1,52 @@
 { config, lib, pkgs, inputs, osConfig, ... }:
+let
+  # $EDITOR is one command, so "a different editor per filetype" has to be a
+  # dispatcher: this reads the first filename it is handed, picks an editor from
+  # the extension and execs it with the original arguments untouched. Anything
+  # unrecognised — and anything with no filename at all, like the COMMIT_EDITMSG
+  # git hands its editor — falls through to helix, which stays the general case.
+  #
+  # leaf and flower are homebrew formulae (diaryx-org/tap, declared in
+  # configuration.nix) rather than nix packages, so they can only be named by
+  # path, and that path is tested before it is used: on a machine where the
+  # brews aren't installed yet this degrades to helix rather than failing to
+  # open the file at all.
+  editor = pkgs.writeShellScriptBin "edit" ''
+    hx="${config.programs.helix.package}/bin/hx"
+    leaf="/opt/homebrew/bin/leaf"
+    flower="/opt/homebrew/bin/flower"
+
+    # First argument that is neither a flag (`-w`) nor a line jump (`+42`).
+    file=""
+    for arg in "$@"; do
+      case "$arg" in
+        -* | +*) ;;
+        *)
+          file="$arg"
+          break
+          ;;
+      esac
+    done
+
+    # Extension of the basename, lowercased. The `?*.*` guard means a leading
+    # dot doesn't count, so `.gitignore` is extensionless and `.config.toml`
+    # is still toml.
+    base="''${file##*/}"
+    ext=""
+    case "$base" in
+      ?*.*) ext=$(printf '%s' "''${base##*.}" | tr '[:upper:]' '[:lower:]') ;;
+    esac
+
+    case "$ext" in
+      md | markdown | dj | djot) chosen="$leaf" ;;
+      json | toml | figl | yaml | yml) chosen="$flower" ;;
+      *) chosen="$hx" ;;
+    esac
+
+    [ -x "$chosen" ] || chosen="$hx"
+    exec "$chosen" "$@"
+  '';
+in
 {  
   home.username = "adamharris";
   home.homeDirectory = "/Users/adamharris";
@@ -8,7 +56,11 @@
   home.stateVersion = "23.11";
 
   home.sessionVariables = {
-    EDITOR = "hx";
+    # Not `hx`: see the dispatcher in the `let` block above. VISUAL is set too
+    # because programs.helix.defaultEditor used to set both, and tools that
+    # prefer VISUAL would otherwise still go straight to helix.
+    EDITOR = lib.getExe editor;
+    VISUAL = lib.getExe editor;
     JOURNAL = "${config.home.homeDirectory}/Desktop/Adam's Archive";
     CARGO_HOME = "${config.home.homeDirectory}/.local/share/cargo";
   };
@@ -162,7 +214,7 @@
     enable = true;
     shellAbbrs = {
       rebuild = "sudo darwin-rebuild switch --flake ~/.config/nix-darwin#adams-mac";
-      e = "hx";
+      e = "edit";
       config = "cd /Users/adamharris/.config/nix-darwin && $EDITOR adamharris.nix";
       ".." = "cd ..";
       "..." = "cd ../..";
@@ -247,6 +299,8 @@
       JOURNAL = "${config.home.homeDirectory}/Desktop/Adam's Archive";
       # Repeated from home.sessionVariables, which nushell doesn't read.
       CARGO_HOME = "${config.home.homeDirectory}/.local/share/cargo";
+      EDITOR = lib.getExe editor;
+      VISUAL = lib.getExe editor;
     };
 
     shellAliases = {
@@ -258,7 +312,7 @@
       show_banner = false;
       abbreviations = {
         rebuild = "sudo darwin-rebuild switch --flake ~/.config/nix-darwin#adams-mac";
-        e = "hx";
+        e = "edit";
         config = "cd /Users/adamharris/.config/nix-darwin; hx adamharris.nix";
         gs = "git status";
         ga = "git add";
@@ -340,7 +394,8 @@
   # home-manager: nix-managed files are read-only symlinks into the store.
   programs.helix = {
     enable = true;
-    defaultEditor = true;
+    # No `defaultEditor = true`: it would set EDITOR/VISUAL to plain `hx` and
+    # collide with the dispatcher those are pointed at in home.sessionVariables.
     settings = {
       theme = "auto";
       # Word count of the selection.
@@ -534,6 +589,7 @@
 
   # Packages specific to your user
   home.packages = [
+    editor
     pkgs.ripgrep
     pkgs.bat
     pkgs.eza

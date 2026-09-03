@@ -24,6 +24,7 @@
     enable = true;
     taps = [
       "jackielii/tap" # for skhd-zig
+      "diaryx-org/tap"
     ];
     casks = [
       "skhd-zig"

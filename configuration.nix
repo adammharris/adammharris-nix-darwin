@@ -118,7 +118,6 @@
       "skhd-zig"
       "karabiner-elements"
       "ghostty"
-      "gpg-suite"
       "google-chrome"
       "helium-browser"
       "claude"
@@ -174,12 +173,6 @@
       set -g default-shell ${pkgs.nushell}/bin/nu
     '';
   };
-
-  # gpg-agent is home-manager's job (services.gpg-agent in adamharris.nix):
-  # it owns ~/.gnupg/gpg-agent.conf, the launchd agent, and GPG_TTY for every
-  # shell. nix-darwin's programs.gnupg.agent duplicated all of that, which is
-  # how enableSSHSupport came to be set in two places and pointed SSH_AUTH_SOCK
-  # at a keyless agent from a file only POSIX shells read. One owner now.
 
   nix.settings.experimental-features = "nix-command flakes";
 

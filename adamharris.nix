@@ -44,6 +44,10 @@ let
   dxModule = "${config.home.homeDirectory}/diaryx/devtools/dx.nu";
   dxImportDir = "${config.home.homeDirectory}/.local/state/nushell";
   dxImport = "${dxImportDir}/dx.nu";
+
+  # The public half of ~/.ssh/id_ed25519, which also signs commits. Named once
+  # because git needs it twice: as the signing key and in allowed_signers.
+  sshSigningKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMlwTKC6z7VudgXylpTy1yEmup4TjOJKHeVRH/EygwcW";
 in
 {
   home.username = "adamharris";
@@ -373,16 +377,6 @@ in
       # parse error and a parse error here costs the whole config.
       source ${dxImport}
 
-      # Re-implementation of the GPG_TTY half of home-manager's gpg-agent
-      # nushell integration (services.gpg-agent.enableNushellIntegration),
-      # guarded so it doesn't abort non-interactive `nu -c` invocations when
-      # there's no tty. (There's no SSH_AUTH_SOCK half any more - ssh support
-      # is off, so nothing overrides launchd's macOS ssh-agent socket.)
-      try {
-        $env.GPG_TTY = (tty)
-        ^${pkgs.gnupg}/bin/gpg-connect-agent --quiet updatestartuptty /bye | ignore
-      }
-
       def today [] {
         let y = (date now | format date "%Y")
         let m = (date now | format date "%m")
@@ -419,12 +413,23 @@ in
         };
       };
       push.autoSetupRemote = true;
+      gpg.ssh.allowedSignersFile = "${config.xdg.configHome}/git/allowed_signers";
     };
+    # Signed with the SSH key that already authenticates to GitHub, so the
+    # Keychain-backed macOS ssh-agent (programs.ssh below) unlocks both.
+    # `key::` hands git the key itself rather than a path, which it would
+    # not tilde-expand. Format is explicit: home.stateVersion 23.11 still
+    # defaults it to openpgp.
     signing = {
-      key = "6D8BDF997ED474FD";
+      format = "ssh";
+      key = "key::${sshSigningKey}";
       signByDefault = true;
     };
   };
+
+  # Without this, `git log --show-signature` can't verify SSH signatures -
+  # GitHub's "Verified" badge works either way.
+  xdg.configFile."git/allowed_signers".text = "adam@diaryx.org ${sshSigningKey}\n";
 
   programs.gh = {
     enable = true;
@@ -660,8 +665,6 @@ in
     pkgs.ripgrep
     pkgs.bat
     pkgs.eza
-    pkgs.gnupg
-    pkgs.pinentry_mac
     pkgs.fzf
     pkgs.nodejs_24
     pkgs.nushell
@@ -764,57 +767,6 @@ in
         UseKeychain = "yes";
       };
     };
-  };
-
-  programs.gpg = {
-    enable = true;
-    # Ported from the previously hand-maintained ~/.gnupg/gpg.conf so
-    # home-manager can manage the file without losing these settings.
-    settings = {
-      cert-digest-algo = "SHA512";
-      default-preference-list = "SHA512 SHA384 SHA256 AES256 AES192 AES ZLIB BZIP2 ZIP Uncompressed";
-      display-charset = "utf-8";
-      keyid-format = "0xlong";
-      list-options = "show-uid-validity";
-      no-comments = true;
-      no-emit-version = true;
-      no-symkey-cache = true;
-      personal-cipher-preferences = "AES256 AES192 AES";
-      personal-compress-preferences = "ZLIB BZIP2 ZIP Uncompressed";
-      personal-digest-preferences = "SHA512 SHA384 SHA256";
-      require-cross-certification = true;
-      s2k-cipher-algo = "AES256";
-      s2k-digest-algo = "SHA512";
-      verify-options = "show-uid-validity";
-      with-fingerprint = true;
-      default-key = "C55D3FA0A249A3D87C9608BE6D8BDF997ED474FD";
-    };
-  };
-
-  services.gpg-agent = {
-    # Ported from the previously hand-maintained ~/.gnupg/gpg-agent.conf.
-    enable = true;
-    # SSH is handled by macOS's ssh-agent (see programs.ssh). This was true,
-    # but sshcontrol is empty and the GPG key has no authentication subkey,
-    # so it claimed SSH_AUTH_SOCK for an agent that could never serve a key -
-    # which is what broke `cargo fetch` over ssh://. gpg-agent still signs
-    # git commits. The *Ssh cache TTLs went with it; they did nothing here.
-    enableSshSupport = false;
-    defaultCacheTtl = 600;
-    maxCacheTtl = 7200;
-    # `grab` is already emitted by home-manager's grabKeyboardAndMouse (default true).
-    enableFishIntegration = true;
-    # enableNushellIntegration explicitly false (home-manager's global
-    # home.shell.enableNushellIntegration now defaults to true since nushell
-    # is the system shell, so merely omitting this isn't enough to disable
-    # it). The generated snippet does `$env.GPG_TTY = (tty)` unconditionally,
-    # and the `tty` external command exits non-zero when there's no
-    # controlling terminal. That aborts *any* non-interactive `nu -c ...`
-    # invocation (e.g. skhd-zig's login-shell PATH capture, run as part of
-    # every keypress dispatch), which is why skhd keybinds silently stopped
-    # firing after the login shell became nushell. We reimplement the same
-    # behavior guarded with try/catch below instead.
-    enableNushellIntegration = false;
   };
 
   # Let Home Manager install and manage itself

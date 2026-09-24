@@ -45,7 +45,7 @@ let
   dxImportDir = "${config.home.homeDirectory}/.local/state/nushell";
   dxImport = "${dxImportDir}/dx.nu";
 in
-{  
+{
   home.username = "adamharris";
   home.homeDirectory = "/Users/adamharris";
 
@@ -59,7 +59,7 @@ in
     # prefer VISUAL would otherwise still go straight to helix.
     EDITOR = lib.getExe editor;
     VISUAL = lib.getExe editor;
-    JOURNAL = "${config.home.homeDirectory}/Desktop/Adam's Archive";
+    JOURNAL = "${config.home.homeDirectory}/Desktop/adams-archive";
     CARGO_HOME = "${config.home.homeDirectory}/.local/share/cargo";
   };
 
@@ -114,6 +114,15 @@ in
       ".local/bin/dx".source =
         config.lib.file.mkOutOfStoreSymlink
           "${config.home.homeDirectory}/diaryx/devtools/dx";
+
+      # The global Claude Code instructions, versioned in ./claude. An
+      # out-of-store link rather than a store path so the file stays
+      # writable: Claude Code's `#` memory shortcut appends to it, and a
+      # read-only symlink would make that fail. The rest of ~/.claude is
+      # runtime state (credentials, sessions, history) and stays unmanaged.
+      ".claude/CLAUDE.md".source =
+        config.lib.file.mkOutOfStoreSymlink
+          "${config.home.homeDirectory}/.config/nix-darwin/claude/CLAUDE.md";
     };
 
   # Nix cannot fetch the org directory: it is private, the clone is over SSH,
@@ -129,15 +138,26 @@ in
       echo "  git clone git@github.com:diaryx-org/org.git ~/diaryx && dx clone"
     fi
 
-    # The one line of nushell that imports dx as a module, written here rather
+    # The two lines of nushell that import dx as a module, written here rather
     # than into config.nu because `use` resolves at parse time: importing a
     # module that isn't there is a parse error, and a parse error in config.nu
     # takes the whole config down with it - no PATH, no aliases, no prompt.
     # Written on every switch, empty when there is no checkout to import, so
     # ~/diaryx stays as optional as the dangling symlink above says it is.
+    #
+    # The second line is what keeps `dx use` spelled that way inside nushell.
+    # `use` is the import keyword, so nushell refuses it as the name of anything
+    # a module exports - the module calls that command `link`, and dx's own
+    # dispatch table plays the same trick for the wrapper on PATH. A quoted
+    # multi-word alias name is a different word to the parser, and is allowed.
+    # It goes beside the import rather than into config.nu for the reason the
+    # import does: it names a command that exists only once the module is there.
     mkdir -p "${dxImportDir}"
     if [ -f "${dxModule}" ]; then
-      echo "use ${dxModule}" > "${dxImport}"
+      {
+        echo "use ${dxModule}"
+        echo 'alias "dx use" = dx link'
+      } > "${dxImport}"
     else
       : > "${dxImport}"
     fi
@@ -151,9 +171,8 @@ in
 
   # Karabiner is set up to make caps lock a super modifer
   xdg.configFile."skhd/skhdrc".text = ''
-    shift + ctrl + alt + cmd - s : ^open /Applications/Synctrain.app
     shift + ctrl + alt + cmd - t : ^open /Applications/Tailscale.app
-    shift + ctrl + alt + cmd - a : ^open /Applications/Claude.app
+    shift + ctrl + alt + cmd - a : ^open "/Applications/T3 Code (Alpha).app"
     shift + ctrl + alt + cmd - g : ^open /Applications/Ghostty.app
     shift + ctrl + alt + cmd - b : ^open /Applications/Helium.app
     shift + ctrl + alt + cmd - d : ^open /Applications/Diaryx.app
@@ -407,6 +426,21 @@ in
     };
   };
 
+  programs.gh = {
+    enable = true;
+    settings = {
+      # ssh, not https: programs.git rewrites every https://github.com/ URL
+      # to git@github.com: anyway, so a https clone from gh would only be
+      # rewritten after the fact. One protocol, stated in one place.
+      git_protocol = "ssh";
+      aliases.co = "pr checkout";
+    };
+    # Off because it would write a credential helper for github.com into
+    # ~/.config/git/config, and with ssh everywhere there is nothing for it
+    # to serve.
+    gitCredentialHelper.enable = false;
+  };
+
   programs.ghostty = {
     enable = true;
     package = null;
@@ -628,10 +662,8 @@ in
     pkgs.eza
     pkgs.gnupg
     pkgs.pinentry_mac
-    pkgs.gh
     pkgs.fzf
     pkgs.nodejs_24
-    pkgs.bun
     pkgs.nushell
     pkgs.fd
     pkgs.ffmpeg
@@ -646,14 +678,51 @@ in
     pkgs.wasmtime
     pkgs.uutils-coreutils
     pkgs.git-cliff
-    pkgs.radicle-node
     pkgs.pijul
     pkgs.minisign
+    pkgs.marimo
+    pkgs.mas
+    pkgs.pandoc
+    pkgs.fastfetch
+    pkgs.yazi
+    pkgs.resvg
+    pkgs.qemu
+
+    # Formerly `cargo install`ed. uniffi-bindgen-cs is not in nixpkgs and is
+    # still a cargo install; nu_plugin_fig is a local build of ~/diaryx/fig
+    # registered by hand with `plugin add`, and stays that way until it is
+    # published.
+    pkgs.cargo-llvm-cov
+    pkgs.cargo-semver-checks
+    pkgs.twiggy
+    pkgs.wasm-bindgen-cli
+    pkgs.wasm-pack
+    pkgs.worker-build
 
     # Real `timeout` binary on PATH (~/.nix-profile/bin), independent of any
     # shell rc file — unlike the zsh/bash aliases above, this also resolves
     # in non-interactive/no-rc shells (e.g. Claude Code's sandboxed Bash tool).
     (pkgs.writeShellScriptBin "timeout" ''exec ${pkgs.uutils-coreutils}/bin/uutils-timeout "$@"'')
+
+    # Bend 2 from upstream's flake (inputs.bend in flake.nix), which replaced
+    # the curl|sh installer's self-updating launcher in ~/.bend. The binary
+    # itself still does a once-a-day version check against bend-lang.com
+    # (bend2/main.ts `check`, honouring BEND_NO_TELEMETRY), which the store
+    # path can't act on anyway, so switch it off. `bend x.bend -o x` wants
+    # Apple's clang (the wrapper sets CC=/usr/bin/clang), so the Xcode CLT
+    # must be installed, which it already is for brew.
+    #
+    # The 2.0.26 darwin-arm64 release archive ships bin/bend with a broken
+    # linker signature (`codesign -v`: "code or signature have been
+    # modified"), which the kernel answers with SIGKILL on exec. Re-sign it
+    # ad hoc; drop this once an upstream release verifies clean.
+    (inputs.bend.packages.${pkgs.stdenv.hostPlatform.system}.default.overrideAttrs (old: {
+      nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.darwin.sigtool ];
+      installPhase = old.installPhase + "\n" + ''
+        codesign -f -s - $out/libexec/bend/bin/bend
+        wrapProgram $out/bin/bend --set BEND_NO_TELEMETRY 1
+      '';
+    }))
 
     # The org's CLIs come from the diaryx-org tap now (see homebrew.brews in
     # configuration.nix), which tracks what CI publishes instead of whatever

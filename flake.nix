@@ -20,6 +20,12 @@
     # home.packages in adamharris.nix.
     fig.url = "github:diaryx-org/fig";
     fig.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Upstream's flake, which fetches the per-platform release archive from
+    # GitHub Releases (a bun-compiled executable, no source build). It pins
+    # its own nixos-unstable only to reach stdenv/makeWrapper, so follow ours.
+    bend.url = "github:bendlang/bend";
+    bend.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager, fig, ... }: {

@@ -89,6 +89,12 @@ in
         text = ''
           [net]
           git-fetch-with-cli = true
+
+          [profile.dev]
+          debug = "line-tables-only"
+
+          [profile.dev.package."*"]
+          debug = false
         '';
       };
     in
@@ -98,6 +104,13 @@ in
       # shelling out to git makes cargo honour ~/.ssh/config and the global
       # url.insteadOf rewrite, which its built-in transport ignores outright.
       # Written to both paths so it applies even when CARGO_HOME isn't set.
+      #
+      # The dev profile halves a debug `target/` (diaryx_ffi: 4.7 GB -> 2.5 GB,
+      # same build time): dependencies carry no debuginfo, our own crates keep
+      # file:line for backtraces. It lives here rather than in each repo so that
+      # every cargo — the terminal's, and the one a GUI-launched Xcode spawns
+      # without CARGO_HOME — reads the same profile and keeps the same
+      # fingerprints. For locals in lldb: CARGO_PROFILE_DEV_DEBUG=true.
       ".local/share/cargo/config.toml" = cargoConfig;
       ".cargo/config.toml" = cargoConfig;
 
@@ -453,6 +466,8 @@ in
       theme = "light:Gruvbox Light Hard,dark:Gruvbox Dark Hard";
       font-size = 13;
       unfocused-split-opacity = 1.0;
+      # Spotlight's cmd+space is disabled in System Settings, freeing it here.
+      keybind = "global:cmd+space=toggle_quick_terminal";
     };
   };
 
@@ -690,6 +705,7 @@ in
     pkgs.yazi
     pkgs.resvg
     pkgs.qemu
+    pkgs.aseprite
 
     # Formerly `cargo install`ed. uniffi-bindgen-cs is not in nixpkgs and is
     # still a cargo install; nu_plugin_fig is a local build of ~/diaryx/fig
@@ -768,6 +784,11 @@ in
       };
     };
   };
+
+  # Home Manager builds its own nixpkgs here (useGlobalPkgs = false in
+  # flake.nix), so configuration.nix's allowUnfree doesn't reach
+  # home.packages. Aseprite is the one unfree package installed this way.
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "aseprite" ];
 
   # Let Home Manager install and manage itself
   programs.home-manager.enable = true;

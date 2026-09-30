@@ -149,7 +149,6 @@
     # rebuild that stops before home-manager. Declare it again only once the
     # store copy is the one that should be on disk.
     masApps = {
-      "Microsoft Word" = 462054704;
       "Obsidian Web Clipper" = 6720708363;
       "Reeder" = 6475002485;
       "Slack" = 803453959;

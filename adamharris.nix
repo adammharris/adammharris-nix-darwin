@@ -409,8 +409,80 @@ in
         let today_file = $"($env.JOURNAL)/Daily/($year)/($month)/($year)-($month)-($day).md"
         try { fig get $today_file todo err> /dev/null } catch { print "None for today!" }
       }
+      # Spotlight from the shell, for the cmd+space quick terminal.
+      #   sp            pick from apps, frequent folders and recently used files
+      #   sp <words>    search the Spotlight index (names and contents) with mdfind
+      #   sp + <expr>   calculate, with units and currency (qalc); not `=`,
+      #                 which nushell parses as an assignment to `sp`
+      #   sp ? <word>   look the word up in Dictionary.app
+      #   sp ! <words>  search the web
+      # In the picker, enter opens (apps launch, files open in their default
+      # app, folders become the working directory) and ctrl-r reveals in Finder.
+      def --env sp [...query: string] {
+        let rest = ($query | skip 1 | str join " ")
+        match ($query.0? | default "") {
+          "+" => { return (^qalc $rest) }
+          "?" => { return (^open $"dict://($rest | url encode)") }
+          "!" => { return (^open $"https://duckduckgo.com/?q=($rest | url encode)") }
+        }
+
+        # One "kind<tab>label<tab>path" line per candidate; fzf shows the first
+        # two columns and hands back the third.
+        # Caches, build output and app internals that Spotlight indexes but
+        # its own UI hides.
+        let noise = '/(Library|target|node_modules|\.git|\.cache)/'
+        let row = {|kind| each {|p| $"($kind)\t($p | str replace $env.HOME '~')\t($p)" } }
+        let rows = if ($query | is-empty) {
+          let apps = (
+            ["/Applications" "/System/Applications" "/System/Applications/Utilities"
+             $"($env.HOME)/Applications" $"($env.HOME)/Applications/Home Manager Apps"]
+            | where {|d| $d | path exists }
+            | each {|d| ls $d | where name =~ '\.app$' | get name }
+            | flatten
+          )
+          let dirs = (^zoxide query --list | lines | first 200)
+          let files = (
+            ^mdfind -onlyin $env.HOME 'kMDItemLastUsedDate >= $time.today(-14) && kMDItemContentTypeTree != "public.folder"' err> /dev/null
+            | lines | where $it !~ $noise | first 300
+          )
+          ($apps | do $row "app") ++ ($dirs | do $row "dir") ++ ($files | do $row "file")
+        } else {
+          ^mdfind ($query | str join " ") err> /dev/null | lines | where $it !~ $noise | first 2000
+          | each {|p| if ($p | path type) == "dir" and $p !~ '\.app$' { [dir $p] } else { [file $p] } }
+          | each {|kp| $"($kp.0)\t($kp.1 | str replace $env.HOME '~')\t($kp.1)" }
+        }
+
+        let preview = r#'case {3} in
+          *.app) mdls -name kMDItemVersion -name kMDItemLastUsedDate {3} ;;
+          *) if [ -d {3} ]; then eza -1 --color=always --group-directories-first {3};
+             else bat --color=always --style=plain --line-range=:200 {3} 2>/dev/null || mdls {3}; fi ;;
+        esac'#
+        let picked = (
+          $rows | str join "\n"
+          | ^fzf --delimiter "\t" --with-nth "1,2" --accept-nth 3 --tiebreak index
+              --expect ctrl-r --with-shell "sh -c" --preview $preview --preview-window "right,50%"
+              --prompt "sp> " --header "enter: open · ctrl-r: reveal in Finder"
+          | complete
+        )
+        if $picked.exit_code != 0 { return }
+        let out = ($picked.stdout | lines)
+        let path = $out.1
+        if $out.0 == "ctrl-r" {
+          ^open -R $path
+        } else if ($path | path type) == "dir" and $path !~ '\.app$' {
+          cd $path
+        } else {
+          ^open $path
+        }
+      }
       if $nu.is-login { greet }
     '';
+  };
+
+  # `z <dir>` jumps to a frequent folder; `sp` also offers its list.
+  programs.zoxide = {
+    enable = true;
+    enableNushellIntegration = true;
   };
 
   programs.git = {
@@ -684,6 +756,7 @@ in
     pkgs.nodejs_24
     pkgs.nushell
     pkgs.fd
+    pkgs.libqalculate # qalc, for `sp + ...`
     pkgs.ffmpeg
     pkgs.uv
     pkgs.nil

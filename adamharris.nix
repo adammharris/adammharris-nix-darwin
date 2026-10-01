@@ -198,6 +198,9 @@ in
     shift + ctrl + alt + cmd - z : ^open /Applications/Zed.app
     shift + ctrl + alt + cmd - f : ^open ~
     shift + ctrl + alt + cmd - x : ^open /Applications/Xcode.app
+    # Screenshots: area (space toggles window) to clipboard, or the cmd+shift+5 toolbar
+    shift + ctrl + alt + cmd - s : ^screencapture -ic
+    shift + ctrl + alt + cmd - r : ^open -a Screenshot
   '';
 
   xdg.configFile."karabiner/karabiner.json" = {

@@ -26,6 +26,10 @@
     # its own nixos-unstable only to reach stdenv/makeWrapper, so follow ours.
     bend.url = "github:bendlang/bend";
     bend.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Official ziglang.org release binaries, repackaged; nixpkgs lags releases.
+    zig.url = "github:mitchellh/zig-overlay";
+    zig.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager, fig, ... }: {

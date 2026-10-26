@@ -38,12 +38,12 @@ let
     exec "$chosen" "$@"
   '';
 
-  # dx, diaryx-org's tool, is a nushell module in the org checkout. Both the
+  # `org`, diaryx-org's tool, is a nushell module in the org checkout. Both the
   # config that imports it and the activation that writes that import need to
   # agree on where the two files are, so the paths are named once here.
-  dxModule = "${config.home.homeDirectory}/diaryx/devtools/dx.nu";
-  dxImportDir = "${config.home.homeDirectory}/.local/state/nushell";
-  dxImport = "${dxImportDir}/dx.nu";
+  orgModule = "${config.home.homeDirectory}/org/devtools/org.nu";
+  orgImportDir = "${config.home.homeDirectory}/.local/state/nushell";
+  orgImport = "${orgImportDir}/org.nu";
 
   # The public half of ~/.ssh/id_ed25519, which also signs commits. Named once
   # because git needs it twice: as the signing key and in allowed_signers.
@@ -53,7 +53,7 @@ in
   home.username = "adamharris";
   home.homeDirectory = "/Users/adamharris";
 
-  # Do not change this unless you know what you are doing. 
+  # Do not change this unless you know what you are doing.
   # It's used for state versioning.
   home.stateVersion = "23.11";
 
@@ -72,9 +72,9 @@ in
   # extraEnv below is generated from this same list, so it stays in sync.
   #
   # ~/.local/bin comes first, and that ordering is load-bearing: it is where
-  # `dx use` links whichever build of an org CLI should answer right now, and
+  # `org use` links whichever build of an org CLI should answer right now, and
   # the whole point is that it wins over the brew formula underneath. It used to
-  # sit after /opt/homebrew/bin, which made `dx use` a silent no-op — the link
+  # sit after /opt/homebrew/bin, which made `org use` a silent no-op — the link
   # was made, the tool reported the channel, and brew's binary still ran.
   home.sessionPath = [
     "${config.home.homeDirectory}/.local/bin"
@@ -114,23 +114,23 @@ in
       ".local/share/cargo/config.toml" = cargoConfig;
       ".cargo/config.toml" = cargoConfig;
 
-      # `dx` is diaryx-org's tool and it lives in the org checkout, so this is
-      # a link to the working tree and not a copy of it: editing devtools/dx.nu
+      # `org` is diaryx-org's tool and it lives in the org checkout, so this is
+      # a link to the working tree and not a copy of it: editing devtools/org.nu
       # takes effect on the next invocation with no rebuild. It is also allowed
-      # to dangle - on a machine where ~/diaryx has not been cloned yet,
+      # to dangle - on a machine where ~/org has not been cloned yet,
       # activation still succeeds and the link starts working the moment it is.
-      # dx's shell entry point walks this symlink to find the org directory it
+      # `org`'s shell entry point walks this symlink to find the org directory it
       # operates on, so the link on PATH and the manifest a command reads are
       # never two different checkouts. This replaces the `ln -s` that the org
       # README tells you to run by hand.
       #
-      # This is how every shell but nushell gets `dx`, and how anything that
+      # This is how every shell but nushell gets `org`, and how anything that
       # shells out to it does. In nushell the module below wins, which is the
       # point: an external command can only print its table, and the module
       # returns it.
-      ".local/bin/dx".source =
+      ".local/bin/org".source =
         config.lib.file.mkOutOfStoreSymlink
-          "${config.home.homeDirectory}/diaryx/devtools/dx";
+          "${config.home.homeDirectory}/org/devtools/org";
 
       # The global Claude Code instructions, versioned in ./claude. An
       # out-of-store link rather than a store path so the file stays
@@ -145,38 +145,38 @@ in
   # Nix cannot fetch the org directory: it is private, the clone is over SSH,
   # and an activation that needs the network and a live agent is one that fails
   # during a rebuild for reasons that have nothing to do with the rebuild.
-  # `dx clone` is the tool for that. This only notices, says so, and does not
-  # fail the switch. Everything dx shells out to - git, gh, git-cliff, nushell,
+  # `org clone` is the tool for that. This only notices, says so, and does not
+  # fail the switch. Everything `org` shells out to - git, gh, git-cliff, nushell,
   # minisign - is in home.packages below, so a fresh machine needs the two
   # commands here and nothing else.
   home.activation.diaryxOrg = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    if [ ! -d "${config.home.homeDirectory}/diaryx/.git" ]; then
-      echo "diaryx: ~/diaryx is not a checkout yet -"
-      echo "  git clone git@github.com:diaryx-org/org.git ~/diaryx && dx clone"
+    if [ ! -d "${config.home.homeDirectory}/org/.git" ]; then
+      echo "diaryx: ~/org is not a checkout yet -"
+      echo "  git clone git@github.com:diaryx-org/org.git ~/org && org clone"
     fi
 
-    # The two lines of nushell that import dx as a module, written here rather
+    # The two lines of nushell that import `org` as a module, written here rather
     # than into config.nu because `use` resolves at parse time: importing a
     # module that isn't there is a parse error, and a parse error in config.nu
     # takes the whole config down with it - no PATH, no aliases, no prompt.
     # Written on every switch, empty when there is no checkout to import, so
-    # ~/diaryx stays as optional as the dangling symlink above says it is.
+    # ~/org stays as optional as the dangling symlink above says it is.
     #
-    # The second line is what keeps `dx use` spelled that way inside nushell.
+    # The second line is what keeps `org use` spelled that way inside nushell.
     # `use` is the import keyword, so nushell refuses it as the name of anything
-    # a module exports - the module calls that command `link`, and dx's own
+    # a module exports - the module calls that command `link`, and `org`'s own
     # dispatch table plays the same trick for the wrapper on PATH. A quoted
     # multi-word alias name is a different word to the parser, and is allowed.
     # It goes beside the import rather than into config.nu for the reason the
     # import does: it names a command that exists only once the module is there.
-    mkdir -p "${dxImportDir}"
-    if [ -f "${dxModule}" ]; then
+    mkdir -p "${orgImportDir}"
+    if [ -f "${orgModule}" ]; then
       {
-        echo "use ${dxModule}"
-        echo 'alias "dx use" = dx link'
-      } > "${dxImport}"
+        echo "use ${orgModule}"
+        echo 'alias "org use" = org link'
+      } > "${orgImport}"
     else
-      : > "${dxImport}"
+      : > "${orgImport}"
     fi
   '';
 
@@ -188,8 +188,11 @@ in
 
   # Karabiner is set up to make caps lock a super modifer
   xdg.configFile."skhd/skhdrc".text = ''
+    .blacklist [
+        "Moonlight"
+    ]
     shift + ctrl + alt + cmd - t : ^open /Applications/Tailscale.app
-    shift + ctrl + alt + cmd - a : ^open "/Applications/T3 Code (Alpha).app"
+    shift + ctrl + alt + cmd - a : ^open /Applications/Claude.app
     shift + ctrl + alt + cmd - g : ^open /Applications/Ghostty.app
     shift + ctrl + alt + cmd - b : ^open /Applications/Helium.app
     shift + ctrl + alt + cmd - d : ^open /Applications/Diaryx.app
@@ -198,6 +201,10 @@ in
     shift + ctrl + alt + cmd - z : ^open /Applications/Zed.app
     shift + ctrl + alt + cmd - f : ^open ~
     shift + ctrl + alt + cmd - x : ^open /Applications/Xcode.app
+    shift + ctrl + alt + cmd - w : ^open /Applications/Strongbox.app
+    shift + ctrl + alt + cmd - 0x2B : ^open "/System/Applications/System Settings.app"
+    # 0x2B is comma; skhd has no literal name for it
+    shift + ctrl + alt + cmd - space : ^open /System/Applications/Apps.app
     # Screenshots: area (space toggles window) to clipboard, or the cmd+shift+5 toolbar
     shift + ctrl + alt + cmd - s : ^screencapture -ic
     shift + ctrl + alt + cmd - r : ^open -a Screenshot
@@ -286,6 +293,7 @@ in
       zigstall = "zig build -Doptimize=ReleaseFast --prefix ~/.local";
       timestamp = "date +%Y-%m-%dT%H:%M:%S%:z";
       today = ''set -l y (date +%Y) && set -l m (date +%m) && set -l d (date +%d) && prov -C $JOURNAL edit $(prov -C "$JOURNAL" new "$y-$m-$d" --in "@Daily/$y/$m" -p --as "Daily/$y/$m/$y-$m-$d.md")'';
+      a = "open /Applications/";
     };
     shellAliases = {
       ls = "eza -lh --group-directories-first --icons=auto";
@@ -380,18 +388,19 @@ in
         zigstall = "zig build -Doptimize=ReleaseFast --prefix ~/.local";
         timestamp = "uutils-date +%Y-%m-%dT%H:%M:%S%:z";
         today = "today";
+        a = "^open /Applications/";
       };
     };
 
     extraConfig = ''
-      # `dx` here is the module in the org checkout rather than the wrapper on
+      # `org` here is the module in the org checkout rather than the wrapper on
       # PATH, so its commands hand back the table they built instead of the
-      # text an external command can only print: `dx tasks fig | select file`
+      # text an external command can only print: `org tasks fig | select file`
       # is a pipeline, not a parse error. The `use` itself is one line in the
       # file below, which the diaryxOrg activation writes - and leaves empty
-      # when ~/diaryx isn't there, because a `use` of a missing module is a
+      # when ~/org isn't there, because a `use` of a missing module is a
       # parse error and a parse error here costs the whole config.
-      source ${dxImport}
+      source ${orgImport}
 
       def today [] {
         let y = (date now | format date "%Y")
@@ -579,11 +588,11 @@ in
 
       # fig's authoring dialect (.figl; .fig is accepted for back-compat).
       # `fig-lsp` comes from the fig flake input in home.packages, so by default
-      # it tracks flake.lock and NOT the ~/diaryx/fig working tree. Testing an
-      # unreleased server no longer means editing this line: `dx use fig local`
+      # it tracks flake.lock and NOT the ~/org/fig working tree. Testing an
+      # unreleased server no longer means editing this line: `org use fig local`
       # builds the checkout and links both `fig` and `fig-lsp` into
       # ~/.local/bin, which is ahead of the nix profile on PATH, and
-      # `dx use fig off` puts it back.
+      # `org use fig off` puts it back.
       #
       # Today the server publishes the Zig parser's teaching diagnostics and
       # nothing else — no formatting, no hover — so there is no format-on-save
@@ -598,7 +607,7 @@ in
       grammar = [
         {
           name = "fig";
-          source.path = "${config.home.homeDirectory}/diaryx/fig/editors/tree-sitter-fig";
+          source.path = "${config.home.homeDirectory}/org/fig/editors/tree-sitter-fig";
         }
       ];
 
@@ -627,7 +636,7 @@ in
   # vocabularies, which is why there are two files.
   xdg.configFile."helix/runtime/queries/fig/highlights.scm".source =
     config.lib.file.mkOutOfStoreSymlink
-      "${config.home.homeDirectory}/diaryx/fig/editors/tree-sitter-fig/queries/highlights-helix.scm";
+      "${config.home.homeDirectory}/org/fig/editors/tree-sitter-fig/queries/highlights-helix.scm";
 
   # dark-mode-notify runs its argument once at load, on every appearance change,
   # and on wake, with DARKMODE=1/0 in the environment.
@@ -672,6 +681,19 @@ in
   programs.direnv = {
     enable = true;
     nix-direnv.enable = true;
+    # 3.2.0 touches the .rc it watches on every cached load, so each shell in a
+    # flake directory reloads every other one (nix-community/nix-direnv#786).
+    # Master has the fix (#790); drop this once a release after 3.2.0 has it.
+    nix-direnv.package = pkgs.nix-direnv.overrideAttrs (_: {
+      src = pkgs.fetchFromGitHub {
+        owner = "nix-community";
+        repo = "nix-direnv";
+        rev = "8c7ebb294d997bc1720ddf3f7ee9ed27c290a0e6";
+        hash = "sha256-nizx6hDPX8P9/M7GWLunnnQpyPJed1ZzKuNDnU+R4Oc=";
+      };
+      installPhase = "install -m400 -D direnvrc $out/share/nix-direnv/direnvrc";
+    });
+    config.global.hide_env_diff = true;
     enableFishIntegration = true;
     enableNushellIntegration = true;
   };
@@ -707,12 +729,12 @@ in
       set -g detach-on-destroy off
     '';
   };
-  
+
   programs.starship = {
     enable = true;
     enableFishIntegration = true;
     enableNushellIntegration = true;
-    
+
     settings = {
       add_newline = false;
       line_break.disabled = true;
@@ -767,7 +789,7 @@ in
     pkgs.rustup
     pkgs.openssl_oqs
     pkgs.presenterm
-    pkgs.zig
+    inputs.zig.packages.${pkgs.stdenv.hostPlatform.system}."0.17.0"
     pkgs.tree
     pkgs.wasmtime
     pkgs.uutils-coreutils
@@ -781,10 +803,10 @@ in
     pkgs.yazi
     pkgs.resvg
     pkgs.qemu
-    pkgs.aseprite
+    pkgs.pnpm
 
     # Formerly `cargo install`ed. uniffi-bindgen-cs is not in nixpkgs and is
-    # still a cargo install; nu_plugin_fig is a local build of ~/diaryx/fig
+    # still a cargo install; nu_plugin_fig is a local build of ~/org/fig
     # registered by hand with `plugin add`, and stays that way until it is
     # published.
     pkgs.cargo-llvm-cov
@@ -822,7 +844,7 @@ in
     # The org's CLIs come from the diaryx-org tap now (see homebrew.brews in
     # configuration.nix), which tracks what CI publishes instead of whatever
     # revision flake.lock was last bumped to — the lock had drifted three minor
-    # versions behind on prov. `dx use <repo> <channel>` links a newer build
+    # versions behind on prov. `org use <repo> <channel>` links a newer build
     # into ~/.local/bin when one is wanted, so nothing here needs to move for
     # that; this is only the floor everything falls back to.
     #
